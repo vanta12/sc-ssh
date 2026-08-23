@@ -51,9 +51,11 @@ rm -f /etc/rsyslog.d/haproxy.conf
 # ── Remove runtime data ─────────────────────────────────────
 echo "[6] Removing runtime data..."
 rm -rf "$AUTOSCRIPT_ROOT"
-rm -rf /etc/letsencrypt/live/vpn-* 2>/dev/null || true
-rm -rf /etc/letsencrypt/archive/vpn-* 2>/dev/null || true
-rm -rf /etc/letsencrypt/renewal/vpn-* 2>/dev/null || true
+for cert_prefix in vpn- autoscript-; do
+    rm -rf "/etc/letsencrypt/live/${cert_prefix}"* 2>/dev/null || true
+    rm -rf "/etc/letsencrypt/archive/${cert_prefix}"* 2>/dev/null || true
+    rm -rf "/etc/letsencrypt/renewal/${cert_prefix}"*.conf 2>/dev/null || true
+done
 
 # ── Flush iptables rules ────────────────────────────────────
 echo "[7] Flushing iptables rules..."

@@ -77,15 +77,19 @@ haproxy_install() {
                 fi
 
                 if command -v certbot &>/dev/null; then
-                    log "Requesting Let's Encrypt certificate..."
+                    # Keep Certbot lineage name stable and use same path for
+                    # HAProxy and renewal. Random cert names break path lookup.
+                    local cert_name="autoscript-${domain//./-}"
+                    local le_live="/etc/letsencrypt/live/${cert_name}"
+                    log "Requesting Let's Encrypt certificate (name=${cert_name})..."
                     if certbot certonly --standalone \
                         --non-interactive --agree-tos \
                         --email "$email" \
                         --domain "$domain" \
-                        --cert-name "vpn-${rand_id}" \
+                        --cert-name "$cert_name" \
                         2>&1 | tee -a "$LOG_FILE"; then
 
-                        local le_live="/etc/letsencrypt/live/${domain}"
+
                         if [ -f "${le_live}/fullchain.pem" ] && [ -f "${le_live}/privkey.pem" ]; then
                             cat "${le_live}/fullchain.pem" "${le_live}/privkey.pem" > "$cert_pem"
                             chmod 600 "$cert_pem"
@@ -98,7 +102,7 @@ haproxy_install() {
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-0 3 */2 * * root certbot renew --quiet --non-interactive && cat /etc/letsencrypt/live/${domain}/fullchain.pem /etc/letsencrypt/live/${domain}/privkey.pem > ${cert_pem} && systemctl reload haproxy
+0 3 */2 * * root certbot renew --quiet --non-interactive && cat ${le_live}/fullchain.pem ${le_live}/privkey.pem > ${cert_pem} && chmod 600 ${cert_pem} && systemctl reload haproxy
 CRONEOF
                             log "Auto-renew cron setup (every 2 days 03:00)"
                         else
