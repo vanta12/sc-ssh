@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-#  haproxy.sh — HAProxy port sharing 80/443 + SSL
+#  03-haproxy.sh — HAProxy port sharing 80/443 + SSL
 # ============================================================
 
 haproxy_install() {
     local domain="${1:-}"
     local ws_port="${2:-8880}"
-    local ssh_port="${3:-22}"
-    local dropbear_port="${4:-143}"
-    local haproxy_port_80="${5:-80}"
-    local haproxy_port_443="${6:-443}"
+    local dropbear_port="${3:-22}"
+    local haproxy_port_80="${4:-80}"
+    local haproxy_port_443="${5:-443}"
 
     section "Installing HAProxy"
 
@@ -238,12 +237,12 @@ frontend https-in
 
 backend ssh_direct
     mode tcp
-    server ssh1 127.0.0.1:${ssh_port} check inter 10s fall 3 rise 2
+    server dropbear1 127.0.0.1:${dropbear_port} check inter 10s fall 3 rise 2
     timeout server 3600s
 
 backend ssh_local
     mode tcp
-    server ssh1 127.0.0.1:${ssh_port} check inter 10s fall 3 rise 2
+    server dropbear1 127.0.0.1:${dropbear_port} check inter 10s fall 3 rise 2
     timeout server 3600s
 
 backend ws_tunnel_plain
@@ -260,10 +259,6 @@ backend ws_tunnel_ssl
     timeout server 3600s
     timeout tunnel 3600s
 
-backend dropbear_local
-    mode tcp
-    server db1 127.0.0.1:${dropbear_port} check inter 10s fall 3 rise 2
-    timeout server 3600s
 HAPROXY
 
     enable_service haproxy

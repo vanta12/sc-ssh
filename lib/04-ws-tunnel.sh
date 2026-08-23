@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  ws-tunnel.sh — Deploy Python raw WebSocket tunnel
+#  04-ws-tunnel.sh — Deploy Python raw WebSocket tunnel
 # ============================================================
 
 ws_tunnel_install() {

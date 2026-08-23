@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  03-badvpn.sh — BadVPN UDPGW binary download + setup
+#  02-badvpn.sh — BadVPN UDPGW binary download + setup
 # ============================================================
 
 badvpn_install() {

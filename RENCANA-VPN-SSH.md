@@ -31,16 +31,16 @@ Client ──────────────────▶│             
               ┌──────────────────────┼──────────────────────┐
               ▼                      ▼                      ▼
         ┌──────────┐         ┌──────────────┐       ┌──────────┐
-        │ OpenSSH  │         │ Custom Python │       │ Dropbear │
-        │ :22      │         │ Raw WS :8880  │       │ :143     │
+        │ Dropbear │         │ Custom Python │
+        │ :22      │         │ Raw WS :8880  │
         └──────────┘         └──────┬───────┘       └──────────┘
                                     │
                             (connect lokal)
                                     │
                               ┌─────▼─────┐
-                              │ OpenSSH   │
-                              │ / Dropbear│
-                              └───────────┘
+                              │ Dropbear   │
+                              │ SSH utama  │
+                              └────────────┘
 ```
 
 ### Detail Routing HAProxy
@@ -69,25 +69,20 @@ frontend https-in
 ```
 
 Backend mapping:
-- `ssh_direct` → 127.0.0.1:22 (OpenSSH)
-- `ssh_local`  → 127.0.0.1:22 (OpenSSH via TLS termination)
+- `ssh_direct` → 127.0.0.1:22 (Dropbear)
+- `ssh_local`  → 127.0.0.1:22 (Dropbear via TLS termination)
 - `ws_tunnel`  → 127.0.0.1:8880 (Python raw WS)
 - `ws_tunnel_ssl` → 127.0.0.1:8880 (Python raw WS via TLS)
-- `dropbear`   → 127.0.0.1:143
 
 ---
 
 ## Komponen
 
-### 1. OpenSSH
-- Port 22 (internal), tapi bisa langsung diakses via port 80/443
-- TCP Forwarding + GatewayPorts
-- Password + PubKey auth
-- Banner custom
-
-### 2. Dropbear
-- Port 143 (internal), bisa diakses dari HAProxy
+### 1. Dropbear — SSH utama
+- Port 22 (internal), bisa langsung diakses via port 80/443
 - Lightweight, < 5 MB RAM
+- Password authentication dan public key authentication
+- Dropbear menjadi satu-satunya SSH server
 
 ### 3. BadVPN/UDPGW
 - Port 7300 (start), range 7300-7399
@@ -245,16 +240,15 @@ frontend https-in
 
 ```
 autoscript/
-├── install.sh                  ← Main installer (interactive menu)
+├── install.sh                  ← Main installer
 ├── lib/
 │   ├── common.sh               ← Shared functions
-│   ├── 01-openssh.sh           ← Step 1: OpenSSH
-│   ├── 02-dropbear.sh          ← Step 2: Dropbear
-│   ├── 03-badvpn.sh            ← Step 3: BadVPN/UDPGW
-│   ├── 04-haproxy.sh           ← Step 4: HAProxy + port sharing
-│   ├── 05-ws-tunnel.sh         ← Step 5: Python raw WS tunnel
-│   ├── 06-firewall.sh          ← Step 6: Fail2Ban/firewall
-│   └── 07-users.sh             ← Step 7: User management
+│   ├── 01-dropbear.sh          ← Step 1: SSH utama
+│   ├── 02-badvpn.sh            ← Step 2: BadVPN/UDPGW
+│   ├── 03-haproxy.sh           ← Step 3: HAProxy + port sharing
+│   ├── 04-ws-tunnel.sh         ← Step 4: Python raw WS tunnel
+│   ├── 05-firewall.sh          ← Step 5: iptables + Fail2Ban
+│   └── 06-users.sh             ← Step 6: User management
 ├── src/
 │   └── ws-tunnel.py            ← Raw WebSocket server (no libraries)
 ├── bin/
@@ -329,7 +323,7 @@ HTTP Injector config:
   - Port: 80
   - Payload: (kosong, direct SSH)
 ```
-HAProxy sniff "SSH-" → route ke OpenSSH :22
+HAProxy sniff "SSH-" → route ke Dropbear :22
 
 ### Skenario 2: SSH over SSL Port 443
 ```
@@ -388,7 +382,7 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               │ STEP 2: Menu Utama (whiptail)        │
               │                                      │
               │ [1] Full Install (Semua)              │
-              │ [2] Install Per-Komponen              │
+              │ [2] Setup lanjutan                     │
               │ [3] User Management                  │
               │ [4] Service Status                    │
               │ [5] Uninstall                        │
@@ -409,7 +403,7 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               │ STEP 3: Input Konfigurasi        │
               │                                  │
               │ → SSH Port       [default: 22]  │
-              │ → Dropbear Port  [default: 143] │
+              │ → Dropbear Port  [default: 22]  │
               │ → BadVPN Start   [default: 7300]│
               │ → HAProxy Ports  [80, 443]      │
               │ → WS Tunnel Port [default: 8880]│
@@ -453,20 +447,19 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
                          │
                          ▼
               ┌─────────────────────────────────┐
-              │ STEP 6: Install Per-Komponen     │
-              │ (paralel kalau full install)     │
+              │ STEP 6: Konfigurasi layanan       │
+              │ Berjalan otomatis setelah tahap 01-05 │
               │                                  │
-              │ [6a] OpenSSH                     │
-              │  • apt install openssh-server    │
-              │  • backup sshd_config            │
-              │  • tulis config baru             │
-              │  • generate host keys            │
-              │  • restart ssh                   │
+              │ [6a] User database               │
+              │  • initialize /etc/vpn-ssh        │
+              │  • initialize user database      │
+              │  • setup user expiry             │
+              │  • keep Dropbear as SSH utama    │
               │                                  │
-              │ [6b] Dropbear                    │
+              │ [1] Dropbear SSH utama           │
               │  • apt install dropbear          │
-              │  • config /etc/default/dropbear   │
-              │  • generate keys                 │
+              │  • config port 22                │
+              │  • generate host keys            │
               │  • restart dropbear              │
               │                                  │
               │ [6c] BadVPN/UDPGW                │
@@ -561,31 +554,29 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
 
 ## Mode Eksekusi
 
-### Mode 1: Full Auto
-```bash
-bash install.sh --full-auto \
-  --ssh-port 22 \
-  --dropbear-port 143 \
-  --badvpn-start 7300 \
-  --ws-port 8880 \
-  --domain "vpn.example.com"  # optional
-```
-Tidak ada prompt interaktif. Cocok untuk provisioning massal.
+`install.sh` hanya punya satu alur. Saat dipanggil, bootstrap mengunduh runtime dari GitHub lalu menjalankan semua tahap berurutan `01` sampai `07` tanpa menu dan tanpa subcommand.
 
-### Mode 2: Interactive (default)
 ```bash
-bash install.sh
+curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | sudo bash
 ```
-Menu whiptail, prompt langkah demi langkah.
 
-### Mode 3: Install Single Component
+Konfigurasi opsional tetap tersedia sebagai flag:
+
 ```bash
-bash install.sh --component ssh
-bash install.sh --component dropbear
-bash install.sh --component badvpn
-bash install.sh --component haproxy
-bash install.sh --component ws-tunnel
-bash install.sh --component firewall
+curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | \
+  sudo bash -s -- --ssh-port 22 --dropbear-port 143 \
+  --badvpn-start 7300 --ws-port 8880 --domain vpn.example.com
+```
+
+Urutan setup:
+
+```text
+01 Dropbear (SSH utama)
+02 BadVPN/UDPGW
+03 HAProxy
+04 WebSocket tunnel
+05 iptables + Fail2Ban
+06 User database
 ```
 
 ## Timeline Pengerjaan
@@ -593,7 +584,7 @@ bash install.sh --component firewall
 | Tahap                         | Estimasi |
 |-------------------------------|----------|
 | 1. Library + Menu             | 1 jam    |
-| 2. OpenSSH module             | 30 menit |
+| 2. Dropbear module            | 30 menit |
 | 3. Dropbear module            | 30 menit |
 | 4. BadVPN binary + service    | 15 menit |
 | 5. HAProxy + port sharing     | 1.5 jam  |

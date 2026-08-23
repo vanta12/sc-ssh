@@ -7,12 +7,10 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 | Komponen | Port Internal | Deskripsi |
 |----------|--------------|-----------|
-| OpenSSH | 22 | SSH server utama + hardening |
-| Dropbear | 143 | Lightweight SSH daemon |
-| BadVPN/UDPGW | 7300-7399 | Precompiled UDP tunnel binary |
+| Dropbear | 22 | SSH server utama + hardening |
+| BadVPN/UDPGW | 7300/UDP | Precompiled UDP tunnel binary |
 | HAProxy | 80, 443 | Port sharing + SSL termination |
 | Python WS Tunnel | 8880 | Custom raw WebSocket (no dependencies) |
-| Fail2Ban | — | Brute-force protection |
 | iptables + Fail2Ban | — | Rate limit dan brute-force protection |
 
 ## Mode Koneksi (Port 80 & 443)
@@ -26,28 +24,23 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 ## Cara Pakai
 
-### Install interaktif
+### One-click install
 ```bash
-cd ~/proyek/autoscript
-sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | sudo bash
 ```
 
-### Full auto
-```bash
-sudo bash install.sh --full-auto --domain vpn.example.com
+Saat dijalankan, `install.sh` selalu mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari branch `main`, lalu menjalankan setup berurutan:
+
+```text
+01 Dropbear (SSH utama)
+02 BadVPN/UDPGW
+03 HAProxy
+04 WebSocket tunnel
+05 iptables + Fail2Ban
+06 User database
 ```
 
-Saat dijalankan, `install.sh` mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari branch `main` repo GitHub ini ke runtime sementara. Module lalu dijalankan berurutan dari runtime tersebut. Binary BadVPN diverifikasi dengan SHA-256 dan saat ini tersedia untuk `x86_64/amd64`.
-
-### Install per-komponen
-```bash
-sudo bash install.sh --component ssh
-sudo bash install.sh --component dropbear
-sudo bash install.sh --component badvpn
-sudo bash install.sh --component haproxy --domain vpn.example.com
-sudo bash install.sh --component ws-tunnel
-sudo bash install.sh --component firewall
-```
+Binary BadVPN diverifikasi dengan SHA-256 dan saat ini tersedia untuk `x86_64/amd64`. Opsi port/domain hanya untuk konfigurasi; tidak ada instalasi per-komponen.
 
 ## Konfigurasi di HTTP Injector
 
@@ -80,13 +73,12 @@ autoscript/
 ├── install.sh           ← Main installer
 ├── lib/
 │   ├── common.sh        ← Shared functions
-│   ├── 01-openssh.sh    ← Step 1: OpenSSH
-│   ├── 02-dropbear.sh   ← Step 2: Dropbear
-│   ├── 03-badvpn.sh     ← Step 3: BadVPN/UDPGW
-│   ├── 04-haproxy.sh    ← Step 4: HAProxy + SSL
-│   ├── 05-ws-tunnel.sh  ← Step 5: Python WS tunnel
-│   ├── 06-firewall.sh   ← Step 6: Fail2Ban/firewall
-│   └── 07-users.sh      ← Step 7: User management
+│   ├── 01-dropbear.sh   ← Step 1: SSH utama
+│   ├── 02-badvpn.sh     ← Step 2: BadVPN/UDPGW
+│   ├── 03-haproxy.sh    ← Step 3: HAProxy + SSL
+│   ├── 04-ws-tunnel.sh  ← Step 4: Python WS tunnel
+│   ├── 05-firewall.sh   ← Step 5: iptables + Fail2Ban
+│   └── 06-users.sh      ← Step 6: User database
 ├── src/
 │   └── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
 ├── bin/
@@ -98,19 +90,7 @@ autoscript/
 
 ## User Management
 
-```bash
-# Buat user trial
-sudo bash install.sh --component users user-create 24  # 24 jam
-
-# List user
-sudo bash install.sh --component users user-list
-
-# Delete user
-sudo bash install.sh --component users user-delete nama_user
-
-# Menu interaktif
-sudo bash install.sh  # pilih [3] User Management
-```
+User database diinisialisasi otomatis pada tahap `06-users.sh`. Dropbear menjadi satu-satunya SSH server.
 
 ## Keamanan
 

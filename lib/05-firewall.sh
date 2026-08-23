@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-#  06-firewall.sh — iptables + Fail2Ban
+#  05-firewall.sh — iptables + Fail2Ban
 # ============================================================
 
 firewall_setup() {
-    local ssh_port="${1:-22}"
-    local dropbear_port="${2:-143}"
-    local ws_port="${3:-8880}"
-    local badvpn_start="${4:-7300}"
-    local badvpn_end="${5:-7399}"
-    local haproxy_ports=("${@:6}")
+    local dropbear_port="${1:-22}"
+    local ws_port="${2:-8880}"
+    local badvpn_start="${3:-7300}"
+    local badvpn_end="${4:-7300}"
 
     section "iptables + Fail2Ban Setup"
 
@@ -30,10 +28,8 @@ firewall_setup() {
         -j DROP 2>/dev/null || true
     iptables -A RATE_SSH -j ACCEPT 2>/dev/null || true
 
-    # Apply rate limiting to SSH ports
-    for port in "$ssh_port" "$dropbear_port"; do
-        iptables -I INPUT -p tcp --dport "$port" -j RATE_SSH 2>/dev/null || true
-    done
+    # Apply rate limiting to primary Dropbear SSH port.
+    iptables -I INPUT -p tcp --dport "$dropbear_port" -j RATE_SSH 2>/dev/null || true
 
     # Drop invalid packets
     iptables -A INPUT -m state --state INVALID -j DROP 2>/dev/null || true
@@ -65,23 +61,8 @@ destemail = root@localhost
 action    = %(action_)s
 backend   = auto
 
-[sshd]
-enabled   = true
-port      = ${ssh_port}
-filter    = sshd
-logpath   = /var/log/auth.log
-maxretry  = 4
-bantime   = 3600
-
-[sshd-ddos]
-enabled   = true
-port      = ${ssh_port}
-filter    = sshd-ddos
-logpath   = /var/log/auth.log
-maxretry  = 8
-bantime   = 7200
-
 [dropbear]
+
 enabled   = true
 port      = ${dropbear_port}
 filter    = sshd
