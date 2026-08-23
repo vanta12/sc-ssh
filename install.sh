@@ -10,7 +10,7 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 export APT_LISTCHANGES_FRONTEND=none
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0##*/}}" 2>/dev/null || echo /tmp)" 2>/dev/null && pwd || echo /tmp)"
 AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
 REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
 RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-${AUTOSCRIPT_ROOT}/runtime}"
