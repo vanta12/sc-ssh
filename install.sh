@@ -55,9 +55,11 @@ bootstrap_runtime() {
     bootstrap_download "lib/05-firewall.sh" "${LIB_DIR}/05-firewall.sh"
     bootstrap_download "lib/06-users.sh" "${LIB_DIR}/06-users.sh"
     bootstrap_download "src/ws-tunnel.py" "${SRC_DIR}/ws-tunnel.py"
+    bootstrap_download "src/haproxy.cfg.tpl" "${SRC_DIR}/haproxy.cfg.tpl"
     bootstrap_download "bin/badvpn-udpgw" "${BIN_DIR}/badvpn-udpgw"
 
     chmod 755 "${LIB_DIR}"/*.sh "${SRC_DIR}/ws-tunnel.py" "${BIN_DIR}/badvpn-udpgw"
+    chmod 644 "${SRC_DIR}/haproxy.cfg.tpl"
 
     case "$(uname -m)" in
         x86_64|amd64) ;;
@@ -77,6 +79,7 @@ fi
 bootstrap_runtime
 export AUTOSCRIPT_BADVPN_BINARY="${BIN_DIR}/badvpn-udpgw"
 export AUTOSCRIPT_WS_SOURCE="${SRC_DIR}/ws-tunnel.py"
+export AUTOSCRIPT_HAPROXY_TEMPLATE="${SRC_DIR}/haproxy.cfg.tpl"
 
 cleanup_runtime() {
     local exit_code=$?

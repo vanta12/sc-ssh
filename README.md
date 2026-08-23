@@ -80,7 +80,8 @@ autoscript/
 │   ├── 05-firewall.sh   ← Step 5: iptables + Fail2Ban
 │   └── 06-users.sh      ← Step 6: User database
 ├── src/
-│   └── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
+│   ├── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
+│   └── haproxy.cfg.tpl  ← HAProxy configuration template
 ├── bin/
 │   └── badvpn-udpgw      ← Precompiled BadVPN UDPGW (x86_64)
 ├── data/                 ← User database
