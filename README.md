@@ -9,7 +9,7 @@ mendukung multi-protocol sharing di port 80 & 443.
 |----------|--------------|-----------|
 | OpenSSH | 22 | SSH server utama + hardening |
 | Dropbear | 143 | Lightweight SSH daemon |
-| BadVPN/UDPGW | 7300-7399 | UDP tunnel (game/streaming) |
+| BadVPN/UDPGW | 7300-7399 | Precompiled UDP tunnel binary |
 | HAProxy | 80, 443 | Port sharing + SSL termination |
 | Python WS Tunnel | 8880 | Custom raw WebSocket (no dependencies) |
 | Fail2Ban | — | Brute-force protection |
@@ -36,6 +36,8 @@ sudo bash install.sh
 ```bash
 sudo bash install.sh --full-auto --domain vpn.example.com
 ```
+
+Saat dijalankan, `install.sh` mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari branch `main` repo GitHub ini ke runtime sementara. Module lalu dijalankan berurutan dari runtime tersebut. Binary BadVPN diverifikasi dengan SHA-256 dan saat ini tersedia untuk `x86_64/amd64`.
 
 ### Install per-komponen
 ```bash
@@ -87,6 +89,8 @@ autoscript/
 │   └── 07-users.sh      ← Step 7: User management
 ├── src/
 │   └── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
+├── bin/
+│   └── badvpn-udpgw      ← Precompiled BadVPN UDPGW (x86_64)
 ├── config/              ← Config templates
 ├── tests/               ← Test scripts
 └── README.md

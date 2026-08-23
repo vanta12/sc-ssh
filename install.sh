@@ -13,9 +13,81 @@ set -euo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/lib"
+REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
+RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-$(mktemp -d /tmp/autoscript-runtime.XXXXXX)}"
+LIB_DIR="${RUNTIME_DIR}/lib"
+SRC_DIR="${RUNTIME_DIR}/src"
+BIN_DIR="${RUNTIME_DIR}/bin"
+BADVPN_SHA256="428be8f53df491db903a9e22e52e7b58d658aeb07e98f044057cd0c38aec9211"
 
-# ── Source common ─────────────────────────────────────────
+bootstrap_die() {
+    printf '[ERROR] %s\\n' "$*" >&2
+    exit 1
+}
+
+bootstrap_download() {
+    local remote_path="$1"
+    local destination="$2"
+    local destination_dir
+    destination_dir="$(dirname "$destination")"
+    mkdir -p "$destination_dir"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --retry 3 --connect-timeout 15 "${REPO_RAW_BASE}/${remote_path}" -o "$destination" || \
+            bootstrap_die "Gagal mengunduh ${remote_path}"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q --tries=3 --timeout=15 "${REPO_RAW_BASE}/${remote_path}" -O "$destination" || \
+            bootstrap_die "Gagal mengunduh ${remote_path}"
+    else
+        bootstrap_die "Butuh curl atau wget untuk mengunduh installer dari GitHub"
+    fi
+
+    [ -s "$destination" ] || bootstrap_die "File unduhan kosong: ${remote_path}"
+}
+
+bootstrap_runtime() {
+    mkdir -p "$LIB_DIR" "$SRC_DIR" "$BIN_DIR"
+
+    bootstrap_download "lib/common.sh" "${LIB_DIR}/common.sh"
+    bootstrap_download "lib/01-openssh.sh" "${LIB_DIR}/01-openssh.sh"
+    bootstrap_download "lib/02-dropbear.sh" "${LIB_DIR}/02-dropbear.sh"
+    bootstrap_download "lib/03-badvpn.sh" "${LIB_DIR}/03-badvpn.sh"
+    bootstrap_download "lib/04-haproxy.sh" "${LIB_DIR}/04-haproxy.sh"
+    bootstrap_download "lib/05-ws-tunnel.sh" "${LIB_DIR}/05-ws-tunnel.sh"
+    bootstrap_download "lib/06-firewall.sh" "${LIB_DIR}/06-firewall.sh"
+    bootstrap_download "lib/07-users.sh" "${LIB_DIR}/07-users.sh"
+    bootstrap_download "src/ws-tunnel.py" "${SRC_DIR}/ws-tunnel.py"
+    bootstrap_download "bin/badvpn-udpgw" "${BIN_DIR}/badvpn-udpgw"
+
+    chmod 755 "${LIB_DIR}"/*.sh "${SRC_DIR}/ws-tunnel.py" "${BIN_DIR}/badvpn-udpgw"
+
+    case "$(uname -m)" in
+        x86_64|amd64) ;;
+        *) bootstrap_die "Binary badvpn-udpgw tersedia untuk x86_64/amd64 saja" ;;
+    esac
+
+    local actual_sha256
+    actual_sha256="$(sha256sum "${BIN_DIR}/badvpn-udpgw" | awk '{print $1}')"
+    [ "$actual_sha256" = "$BADVPN_SHA256" ] || \
+        bootstrap_die "Checksum badvpn-udpgw tidak cocok"
+}
+
+if [ "${EUID}" -ne 0 ]; then
+    bootstrap_die "Jalankan sebagai root: sudo bash install.sh"
+fi
+
+bootstrap_runtime
+export AUTOSCRIPT_BADVPN_BINARY="${BIN_DIR}/badvpn-udpgw"
+export AUTOSCRIPT_WS_SOURCE="${SRC_DIR}/ws-tunnel.py"
+
+cleanup_runtime() {
+    case "$RUNTIME_DIR" in
+        /tmp/autoscript-runtime.*) rm -rf "$RUNTIME_DIR" ;;
+    esac
+}
+trap cleanup_runtime EXIT
+
+# ── Source downloaded common ───────────────────────────────
 source "${LIB_DIR}/common.sh"
 
 # ── Default Config ────────────────────────────────────────

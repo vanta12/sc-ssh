@@ -91,7 +91,7 @@ Backend mapping:
 
 ### 3. BadVPN/UDPGW
 - Port 7300 (start), range 7300-7399
-- Compile from source
+- Binary precompiled diunduh dari `bin/badvpn-udpgw` repo GitHub
 
 ### 4. HAProxy — Port Sharing Engine
 - Listen: 80 (plain) + 443 (TLS)
@@ -257,6 +257,8 @@ autoscript/
 │   └── 07-users.sh             ← Step 7: User management
 ├── src/
 │   └── ws-tunnel.py            ← Raw WebSocket server (no libraries)
+├── bin/
+│   └── badvpn-udpgw            ← Precompiled BadVPN binary (x86_64)
 ├── config/
 │   ├── haproxy.cfg             ← HAProxy port sharing config
 │   ├── dropbear.default        ← Dropbear config template
@@ -468,9 +470,8 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               │  • restart dropbear              │
               │                                  │
               │ [6c] BadVPN/UDPGW                │
-              │  • apt install cmake build-ess.  │
-              │  • git clone badvpn              │
-              │  • cmake + make udpgw            │
+              │  • download bin/badvpn-udpgw     │
+              │  • verify SHA-256 + x86_64       │
               │  • cp binary → /usr/local/bin/   │
               │  • systemd service               │
               │                                  │
@@ -596,7 +597,7 @@ bash install.sh --component firewall
 | 1. Library + Menu             | 1 jam    |
 | 2. OpenSSH module             | 30 menit |
 | 3. Dropbear module            | 30 menit |
-| 4. BadVPN compile             | 45 menit |
+| 4. BadVPN binary + service    | 15 menit |
 | 5. HAProxy + port sharing     | 1.5 jam  |
 | 6. Python raw WS tunnel       | 2 jam    |
 | 7. Firewall + Fail2Ban        | 30 menit |
@@ -621,7 +622,7 @@ bash install.sh --component firewall
 ## Hasil Akhir
 
 1. `~/proyek/autoscript/install.sh` — main installer
-2. Semua modul library + source code WS tunnel
+2. Bootstrap mengunduh semua module `lib/`, source `src/`, dan binary BadVPN dari GitHub
 3. File konfigurasi template
 4. Semua service running via systemd
 5. README.md dengan cara pakai HTTP Injector

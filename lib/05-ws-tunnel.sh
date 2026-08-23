@@ -18,11 +18,9 @@ ws_tunnel_install() {
     local deploy_dir="/opt/vpn-ssh"
     mkdir -p "$deploy_dir"
 
-    # Find ws-tunnel.py source
-    local src
-    src="$(dirname "$(dirname "$(readlink -f "$0")")")/src/ws-tunnel.py"
-    # Fallback: look alongside installer
-    [ -f "$src" ] || src="$(dirname "$(readlink -f "$0")")/../src/ws-tunnel.py"
+    # Use source downloaded by install.sh bootstrap.
+    local src="${AUTOSCRIPT_WS_SOURCE:-}"
+    [ -f "$src" ] || src="${SCRIPT_DIR:-}/src/ws-tunnel.py"
     [ -f "$src" ] || src="./src/ws-tunnel.py"
 
     if [ ! -f "$src" ]; then
