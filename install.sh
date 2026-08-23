@@ -21,7 +21,7 @@ case "$AUTOSCRIPT_ROOT" in
     /opt/autoscript) ;;
     *) printf '[ERROR] AUTOSCRIPT_ROOT harus /opt/autoscript\n' >&2; exit 1 ;;
 esac
-REPO_REF="a3275fc024cfedc38c08afa5f72de7c1ce9ed6f5"
+REPO_REF="dd3c8aa8b1f0be86f3364b1085000d2aa43a77eb"
 REPO_RAW_BASE="https://raw.githubusercontent.com/vanta12/sc-ssh/${REPO_REF}"
 RUNTIME_DIR="${AUTOSCRIPT_ROOT}/runtime"
 LIB_DIR="${RUNTIME_DIR}/lib"
