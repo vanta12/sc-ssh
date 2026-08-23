@@ -14,6 +14,12 @@ BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
 # ── Flags ───────────────────────────────────────────────────
 AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
 LOG_FILE="${AUTOSCRIPT_ROOT}/logs/vpn-install.log"
+AUTOSCRIPT_DATA_DIR="${AUTOSCRIPT_ROOT}/data"
+AUTOSCRIPT_PACKAGE_MANIFEST="${AUTOSCRIPT_DATA_DIR}/packages.list"
+AUTOSCRIPT_BACKUP_MANIFEST="${AUTOSCRIPT_DATA_DIR}/backups.list"
+AUTOSCRIPT_CREATED_MANIFEST="${AUTOSCRIPT_DATA_DIR}/created.list"
+AUTOSCRIPT_LOCK_FILE="/run/lock/autoscript-install.lock"
+AUTOSCRIPT_LOCK_FD=""
 DRY_RUN=false
 FORCE=false
 
@@ -106,6 +112,17 @@ detect_os() {
 }
 
 # ── Install package ─────────────────────────────────────────
+manifest_add() {
+    local manifest=$1
+    local value=$2
+    mkdir -p "$(dirname "$manifest")"
+    touch "$manifest"
+    if ! grep -Fqx -- "$value" "$manifest" 2>/dev/null; then
+        printf '%s\n' "$value" >> "$manifest"
+    fi
+    chmod 600 "$manifest"
+}
+
 install_pkg() {
     local pkg=$1
     if dpkg -s "$pkg" &>/dev/null; then
@@ -116,10 +133,11 @@ install_pkg() {
     if $DRY_RUN; then
         ok "[DRY-RUN] apt install -y $pkg"
     else
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" 2>&1 | tee -a "$LOG_FILE" >/dev/null || {
+        if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" 2>&1 | tee -a "$LOG_FILE" >/dev/null; then
             warn "Gagal install $pkg — retrying..."
             DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg" || die "Gagal install $pkg"
-        }
+        fi
+        manifest_add "$AUTOSCRIPT_PACKAGE_MANIFEST" "$pkg"
     fi
 }
 
@@ -128,8 +146,22 @@ backup_file() {
     local file=$1
     if [ -f "$file" ]; then
         local bak="${file}.bak-$(date +%Y%m%d%H%M%S)"
-        cp "$file" "$bak"
+        cp -a -- "$file" "$bak"
+        manifest_add "$AUTOSCRIPT_BACKUP_MANIFEST" "${file}|${bak}"
         ok "Backup: $bak"
+    fi
+}
+
+mark_created_file() {
+    manifest_add "$AUTOSCRIPT_CREATED_MANIFEST" "$1"
+}
+
+track_file_before_write() {
+    local file=$1
+    if [ -e "$file" ]; then
+        backup_file "$file"
+    else
+        mark_created_file "$file"
     fi
 }
 
@@ -139,7 +171,7 @@ enable_service() {
     systemctl daemon-reload 2>/dev/null || true
     systemctl enable "$svc" 2>/dev/null || ok "$svc enable — skipped"
 
-    if timeout 30 systemctl start "$svc" 2>/dev/null && systemctl is-active --quiet "$svc"; then
+    if timeout 30 systemctl restart "$svc" 2>/dev/null && systemctl is-active --quiet "$svc"; then
         return 0
     fi
 
@@ -174,6 +206,62 @@ wait_for_port() {
         attempts=$((attempts - 1))
     done
     return 1
+}
+
+rollback_install() {
+    warn "Rollback instalasi dimulai..."
+    local firewall_backup="${AUTOSCRIPT_ROOT}/data/iptables.before.v4"
+    if [ -s "$firewall_backup" ] && command -v iptables-restore >/dev/null 2>&1; then
+        iptables-restore < "$firewall_backup" 2>/dev/null || true
+    fi
+    for svc in ws-tunnel udpgw autoscript-dropbear; do
+        if grep -Fq "/${svc}.service" "$AUTOSCRIPT_CREATED_MANIFEST" 2>/dev/null; then
+            systemctl disable --now "$svc" 2>/dev/null || true
+        fi
+    done
+    if grep -Fq "/etc/haproxy/haproxy.cfg" "$AUTOSCRIPT_BACKUP_MANIFEST" "$AUTOSCRIPT_CREATED_MANIFEST" 2>/dev/null; then
+        systemctl disable --now haproxy 2>/dev/null || true
+    fi
+    if grep -Fxq fail2ban "$AUTOSCRIPT_PACKAGE_MANIFEST" 2>/dev/null; then
+        systemctl disable --now fail2ban 2>/dev/null || true
+    fi
+    if [ -f "$AUTOSCRIPT_CREATED_MANIFEST" ]; then
+        while IFS= read -r created; do
+            case "$created" in
+                /etc/systemd/system/*.service) rm -f -- "$created" ;;
+            esac
+        done < "$AUTOSCRIPT_CREATED_MANIFEST"
+    fi
+    systemctl daemon-reload 2>/dev/null || true
+
+    if [ -f "${AUTOSCRIPT_DATA_DIR}/certificate-owned" ]; then
+        local rollback_domain
+        rollback_domain="$(head -n 1 "${AUTOSCRIPT_DATA_DIR}/certificate-owned")"
+        case "$rollback_domain" in
+            *[!a-zA-Z0-9.-]*|.*|*..*|*/*) rollback_domain="" ;;
+        esac
+        if [ -n "$rollback_domain" ]; then
+            certbot delete --cert-name "$rollback_domain" --non-interactive 2>/dev/null || true
+            rm -rf -- "/etc/letsencrypt/live/$rollback_domain" "/etc/letsencrypt/archive/$rollback_domain"
+            rm -f -- "/etc/letsencrypt/renewal/$rollback_domain.conf"
+        fi
+    fi
+
+    if [ -f "$AUTOSCRIPT_BACKUP_MANIFEST" ]; then
+        while IFS='|' read -r original backup; do
+            [ -n "$original" ] && [ -f "$backup" ] && cp -a -- "$backup" "$original"
+        done < "$AUTOSCRIPT_BACKUP_MANIFEST"
+    fi
+    if [ -f "$AUTOSCRIPT_CREATED_MANIFEST" ]; then
+        while IFS= read -r created; do
+            [ -n "$created" ] && rm -f -- "$created"
+        done < "$AUTOSCRIPT_CREATED_MANIFEST"
+    fi
+    if [ -f "$AUTOSCRIPT_PACKAGE_MANIFEST" ]; then
+        while IFS= read -r pkg; do
+            [ -n "$pkg" ] && apt-get remove --purge -y -qq "$pkg" >/dev/null 2>&1 || true
+        done < "$AUTOSCRIPT_PACKAGE_MANIFEST"
+    fi
 }
 
 # ── Get public IP ───────────────────────────────────────────
@@ -268,20 +356,23 @@ cleanup() {
         warn "Script selesai dengan error (code: $exit_code)"
         warn "Log disimpan di: $LOG_FILE"
     fi
-    # Remove lock
-    rm -f /tmp/vpn-install.lock 2>/dev/null || true
+    if [ -n "${AUTOSCRIPT_LOCK_FD:-}" ]; then
+        flock -u "$AUTOSCRIPT_LOCK_FD" 2>/dev/null || true
+        eval "exec ${AUTOSCRIPT_LOCK_FD}>&-" 2>/dev/null || true
+        AUTOSCRIPT_LOCK_FD=""
+    fi
 }
 trap cleanup EXIT
 
 # ── Lock ────────────────────────────────────────────────────
 acquire_lock() {
-    if [ -f /tmp/vpn-install.lock ]; then
-        local pid=$(cat /tmp/vpn-install.lock 2>/dev/null)
-        if kill -0 "$pid" 2>/dev/null; then
-            die "Installer sudah berjalan (PID: $pid). Hapus /tmp/vpn-install.lock jika yakin tidak ada."
-        fi
+    command -v flock >/dev/null 2>&1 || die "Butuh utilitas flock"
+    mkdir -p "$(dirname "$AUTOSCRIPT_LOCK_FILE")"
+    exec {AUTOSCRIPT_LOCK_FD}>"$AUTOSCRIPT_LOCK_FILE"
+    if ! flock -n "$AUTOSCRIPT_LOCK_FD"; then
+        die "Installer lain sedang berjalan: $AUTOSCRIPT_LOCK_FILE"
     fi
-    echo $$ > /tmp/vpn-install.lock
+    printf '%s\n' "$$" 1>&"$AUTOSCRIPT_LOCK_FD"
 }
 
 # ── JSON helper (tanpa jq) ──────────────────────────────────

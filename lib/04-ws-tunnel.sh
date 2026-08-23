@@ -207,6 +207,7 @@ PYEOF
     log "WebSocket tunnel deployed to $deploy_dir/ws-tunnel.py"
 
     # Create systemd service
+    track_file_before_write /etc/systemd/system/ws-tunnel.service
     cat > /etc/systemd/system/ws-tunnel.service <<SYSTEMD
 [Unit]
 Description=Custom Python WebSocket Tunnel

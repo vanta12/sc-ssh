@@ -16,7 +16,7 @@ dropbear_install() {
     timeout 30 service dropbear stop 2>/dev/null || true
 
     local conf="/etc/default/dropbear"
-    backup_file "$conf"
+    track_file_before_write "$conf"
 
     log "Configuring Dropbear (port=$port)..."
 
@@ -33,6 +33,7 @@ DROPBEAR_WINDOW_INCREMENT=256
 DROPBEAR
 
     # Generate banner
+    track_file_before_write /etc/dropbear.banner
     cat > /etc/dropbear.banner <<'EOF'
   ╔══════════════════════════════════════════╗
   ║  VPN SSH — Dropbear Ready               ║
@@ -43,17 +44,20 @@ EOF
     # Generate keys
     mkdir -p /etc/dropbear
     if [ ! -s /etc/dropbear/dropbear_rsa_host_key ]; then
+        mark_created_file /etc/dropbear/dropbear_rsa_host_key
         log "Generating Dropbear RSA key..."
         timeout 60 dropbearkey -t rsa -s 2048 -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || \
             timeout 60 dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || \
             die "Gagal membuat Dropbear RSA host key"
     fi
     if [ ! -s /etc/dropbear/dropbear_ecdsa_host_key ]; then
+        mark_created_file /etc/dropbear/dropbear_ecdsa_host_key
         log "Generating Dropbear ECDSA key..."
         timeout 60 dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key 2>/dev/null || \
             warn "Gagal membuat ECDSA key; lanjut dengan key lain"
     fi
     if [ ! -s /etc/dropbear/dropbear_ed25519_host_key ]; then
+        mark_created_file /etc/dropbear/dropbear_ed25519_host_key
         log "Generating Dropbear Ed25519 key..."
         timeout 60 dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null || \
             warn "Gagal membuat Ed25519 key; lanjut dengan key lain"
@@ -61,6 +65,7 @@ EOF
 
     # Keep existing OpenSSH on port 22 as admin fallback. Dropbear runs on 143.
     # A dedicated simple unit avoids the package's blocking SysV wrapper.
+    track_file_before_write /etc/systemd/system/autoscript-dropbear.service
     cat > /etc/systemd/system/autoscript-dropbear.service <<SYSTEMD
 [Unit]
 Description=AutoScript Dropbear SSH

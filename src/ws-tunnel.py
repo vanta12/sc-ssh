@@ -39,12 +39,16 @@ RATE_LIMIT = int(os.environ.get("WS_RATE_LIMIT", "30"))
 RATE_WINDOW = int(os.environ.get("WS_RATE_WINDOW", "60"))
 TIMEOUT = int(os.environ.get("WS_TIMEOUT", "3600"))
 BUFFER_SIZE = int(os.environ.get("WS_BUFFER", "8192"))
+MAX_HEADER_SIZE = int(os.environ.get("WS_MAX_HEADER", "16384"))
+MAX_FRAME_SIZE = int(os.environ.get("WS_MAX_FRAME", "2097152"))
+HANDSHAKE_TIMEOUT = int(os.environ.get("WS_HANDSHAKE_TIMEOUT", "15"))
 LOG_FILE = os.environ.get("WS_LOG", "/opt/autoscript/logs/ws-tunnel.log")
 
 # ── Globals ───────────────────────────────────────────────
 clients = {}
 rate_map = {}
 lock = threading.Lock()
+client_slots = threading.BoundedSemaphore(MAX_CLIENTS)
 running = True
 
 # ── Logging ───────────────────────────────────────────────
@@ -114,6 +118,9 @@ def decode_frame(data):
             return (None, None, None, None, b"", data)
         mask_key = data[offset:offset + 4]
         offset += 4
+
+    if payload_len > MAX_FRAME_SIZE:
+        return ("TOO_LARGE", None, is_fin, is_masked, b"")
 
     total_len = offset + payload_len
     if len(data) < total_len:
@@ -199,10 +206,14 @@ def do_handshake(sock):
     Perform WebSocket handshake.
     Returns (success: bool, remaining_bytes: bytes, req: dict)
     """
+    previous_timeout = sock.gettimeout()
+    sock.settimeout(HANDSHAKE_TIMEOUT)
     data = b""
     while b"\r\n\r\n" not in data:
+        if len(data) >= MAX_HEADER_SIZE:
+            return (False, b"", {"error": "headers too large"})
         try:
-            chunk = sock.recv(4096)
+            chunk = sock.recv(min(4096, MAX_HEADER_SIZE - len(data)))
         except Exception:
             return (False, b"", {"error": "recv failed"})
         if not chunk:
@@ -217,12 +228,16 @@ def do_handshake(sock):
 
     # Check for WebSocket upgrade
     upgrade = req["headers"].get("upgrade", "").lower()
-    if "websocket" not in upgrade:
-        # Not a WebSocket request — send HTTP 426 or drop
-        return (False, remaining, {"error": "not websocket", "req": req})
+    connection = req["headers"].get("connection", "").lower()
+    version = req["headers"].get("sec-websocket-version", "")
+    if req.get("method") != "GET" or "websocket" not in upgrade or "upgrade" not in connection:
+        return (False, remaining, {"error": "invalid websocket upgrade", "req": req})
+    if version and version != "13":
+        return (False, remaining, {"error": "unsupported websocket version", "req": req})
 
     client_key = req["headers"].get("sec-websocket-key", "")
     if not client_key:
+        sock.settimeout(previous_timeout)
         return (False, remaining, {"error": "missing sec-websocket-key"})
 
     # Build response
@@ -238,8 +253,10 @@ def do_handshake(sock):
     try:
         sock.sendall(response.encode())
     except Exception:
+        sock.settimeout(previous_timeout)
         return (False, remaining, {"error": "send response failed"})
 
+    sock.settimeout(previous_timeout)
     return (True, remaining, req)
 
 
@@ -304,6 +321,9 @@ def pipe_ws_to_tcp(client_sock, backend_sock, direction):
                     opcode, payload, is_fin, is_masked, remaining = decode_frame(buf)
                     if opcode is None:
                         break
+                    if opcode == "TOO_LARGE":
+                        log("warn", "WebSocket frame too large", ip="unknown")
+                        return
                     buf = remaining
 
                     if is_masked is False and opcode != OP_CLOSE:
@@ -340,6 +360,13 @@ def pipe_ws_to_tcp(client_sock, backend_sock, direction):
 
 
 def handle_client(client_sock, addr):
+    try:
+        _handle_client(client_sock, addr)
+    finally:
+        client_slots.release()
+
+
+def _handle_client(client_sock, addr):
     ip = addr[0]
     port = addr[1]
 
@@ -370,6 +397,7 @@ def handle_client(client_sock, addr):
         backend_sock = socket.create_connection(
             (BACKEND_HOST, BACKEND_PORT), timeout=5
         )
+        backend_sock.settimeout(None)
     except Exception as e:
         log("error", f"Backend connect failed", ip=ip, error=str(e))
         close_frame = encode_frame(OP_CLOSE, struct.pack(">H", 1011))
@@ -462,13 +490,21 @@ def main():
     while running:
         try:
             client_sock, addr = server.accept()
+            if not client_slots.acquire(blocking=False):
+                client_sock.close()
+                continue
             client_sock.settimeout(TIMEOUT)
-            t = threading.Thread(
-                target=handle_client,
-                args=(client_sock, addr),
-                daemon=True
-            )
-            t.start()
+            try:
+                t = threading.Thread(
+                    target=handle_client,
+                    args=(client_sock, addr),
+                    daemon=True
+                )
+                t.start()
+            except Exception:
+                client_slots.release()
+                client_sock.close()
+                raise
             log("debug", f"Active threads: {threading.active_count()}")
         except socket.timeout:
             continue

@@ -17,8 +17,13 @@ if [ -z "$SCRIPT_SOURCE" ]; then
 fi
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" 2>/dev/null && pwd || printf '%s' /tmp)"
 AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
-REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
-RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-${AUTOSCRIPT_ROOT}/runtime}"
+case "$AUTOSCRIPT_ROOT" in
+    /opt/autoscript) ;;
+    *) printf '[ERROR] AUTOSCRIPT_ROOT harus /opt/autoscript\n' >&2; exit 1 ;;
+esac
+REPO_REF="e6aac0ebc92a5fd6c073716e5b9250c23c555fba"
+REPO_RAW_BASE="https://raw.githubusercontent.com/vanta12/sc-ssh/${REPO_REF}"
+RUNTIME_DIR="${AUTOSCRIPT_ROOT}/runtime"
 LIB_DIR="${RUNTIME_DIR}/lib"
 SRC_DIR="${RUNTIME_DIR}/src"
 BIN_DIR="${RUNTIME_DIR}/bin"
@@ -92,6 +97,9 @@ export AUTOSCRIPT_USER_HELPER="${LIB_DIR}/06-users.sh"
 
 cleanup_runtime() {
     local exit_code=$?
+    if [ "$exit_code" -ne 0 ] && [ "${AUTOSCRIPT_INSTALL_ACTIVE:-false}" = true ]; then
+        rollback_install || true
+    fi
     cleanup
     exit "$exit_code"
 }
@@ -110,6 +118,7 @@ DOMAIN=""
 must_be_root
 setup_log
 acquire_lock
+AUTOSCRIPT_INSTALL_ACTIVE=true
 check_internet || warn "Tidak ada internet — beberapa fitur mungkin gagal"
 detect_os
 
@@ -120,6 +129,14 @@ fi
 if [ -n "$DOMAIN" ] && ! validate_fqdn "$DOMAIN"; then
     warn "Format domain tidak valid; memakai self-signed certificate"
     DOMAIN=""
+fi
+if [ -n "$DOMAIN" ]; then
+    mkdir -p "${AUTOSCRIPT_ROOT}/data"
+    chmod 700 "${AUTOSCRIPT_ROOT}/data"
+    local_domain_file="${AUTOSCRIPT_ROOT}/data/certificate-domain"
+    track_file_before_write "$local_domain_file"
+    printf '%s\n' "$DOMAIN" > "$local_domain_file"
+    chmod 600 "$local_domain_file"
 fi
 
 section "FULL INSTALL"
@@ -157,3 +174,4 @@ echo "BadVPN UDP: ${BADVPN_START}"
 echo "WS tunnel: ${WS_PORT}"
 echo "HAProxy: ${HAPROXY_PORT_80}, ${HAPROXY_PORT_443}"
 echo "Log: ${LOG_FILE}"
+AUTOSCRIPT_INSTALL_ACTIVE=false

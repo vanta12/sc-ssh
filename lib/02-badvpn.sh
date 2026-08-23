@@ -22,6 +22,7 @@ badvpn_install() {
 
     # Create systemd service
     log "Creating udpgw systemd service..."
+    track_file_before_write /etc/systemd/system/udpgw.service
     cat > /etc/systemd/system/udpgw.service <<SYSTEMD
 [Unit]
 Description=BadVPN UDP Gateway
@@ -43,9 +44,11 @@ SYSTEMD
 
     enable_service udpgw
 
-    if port_in_use "$start_port"; then
+    if wait_for_port "$start_port" 20; then
         log "BadVPN UDPGW running on port $start_port ✓"
     else
-        warn "BadVPN mungkin tidak listen — cek: systemctl status udpgw"
+        err "BadVPN UDPGW tidak listen di port $start_port"
+        systemctl status udpgw --no-pager -l 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+        return 1
     fi
 }

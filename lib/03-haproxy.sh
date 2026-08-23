@@ -19,12 +19,24 @@ haproxy_install() {
     local ha_conf="/etc/haproxy/haproxy.cfg"
     local ssl_dir="${AUTOSCRIPT_ROOT}/ssl"
     mkdir -p "$ssl_dir"
-    backup_file "$ha_conf"
+    track_file_before_write "$ha_conf"
+
+    # Never stop an unrelated web service. HAProxy may be restarted only when
+    # its existing config is clearly owned by AutoScript.
+    if port_in_use "$haproxy_port_80" || port_in_use "$haproxy_port_443"; then
+        if systemctl is-active --quiet haproxy \
+            && grep -q 'VPN SSH Installer' "$ha_conf" 2>/dev/null; then
+            systemctl stop haproxy 2>/dev/null || true
+        else
+            die "Port ${haproxy_port_80} atau ${haproxy_port_443} sedang dipakai service lain"
+        fi
+    fi
 
     # ── SSL Certificate ────────────────────────────────────
     local cert_type="self-signed"
     local cert_pem="${ssl_dir}/vpn.pem"
     local cert_valid=false
+    local cert_lineage_preexisting=false
 
     if [ -n "$domain" ]; then
         section "Domain + SSL Validation"
@@ -43,16 +55,6 @@ haproxy_install() {
             vps_ip=$(get_public_ip)
             if [ "$dns_ip" = "$vps_ip" ]; then
                 log "DNS A record OK: $domain → $dns_ip (cocok dengan VPS)"
-
-                # Step 4: Check port 80 availability
-                if port_in_use 80 && ! $FORCE; then
-                    warn "Port 80 sudah digunakan — stop sementara untuk certbot"
-                    # Try to free port 80
-                    systemctl stop haproxy 2>/dev/null || true
-                    systemctl stop nginx 2>/dev/null || true
-                    systemctl stop apache2 2>/dev/null || true
-                    sleep 2
-                fi
 
                 # Use a syntactically valid mailbox. Let's Encrypt only needs a
                 # reachable-looking contact address; do not invent invalid TLDs.
@@ -79,6 +81,9 @@ haproxy_install() {
                 if command -v certbot &>/dev/null; then
                     # Use Certbot's standard domain-based lineage path.
                     local le_live="/etc/letsencrypt/live/${domain}"
+                    if [ -e "$le_live" ] || [ -f "/etc/letsencrypt/renewal/${domain}.conf" ]; then
+                        cert_lineage_preexisting=true
+                    fi
                     log "Requesting Let's Encrypt certificate (domain=${domain})..."
                     if certbot certonly --standalone \
                         --non-interactive --agree-tos \
@@ -92,9 +97,15 @@ haproxy_install() {
                             chmod 600 "$cert_pem"
                             cert_type="lets-encrypt"
                             cert_valid=true
+                            if [ "$cert_lineage_preexisting" = false ]; then
+                                track_file_before_write "${AUTOSCRIPT_ROOT}/data/certificate-owned"
+                                printf '%s\n' "$domain" > "${AUTOSCRIPT_ROOT}/data/certificate-owned"
+                                chmod 600 "${AUTOSCRIPT_ROOT}/data/certificate-owned"
+                            fi
                             log "Let's Encrypt certificate obtained ✓"
 
                             # Setup auto-renew
+                            track_file_before_write /etc/cron.d/certbot-vpn
                             cat > /etc/cron.d/certbot-vpn <<CRONEOF
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
@@ -285,6 +296,11 @@ HAPROXY
         haproxy -c -f "$ha_conf" >/dev/null || die "Konfigurasi HAProxy tidak valid"
     fi
     enable_service haproxy
+    if ! wait_for_port "$haproxy_port_80" 20 || ! wait_for_port "$haproxy_port_443" 20; then
+        err "HAProxy tidak listen pada port ${haproxy_port_80}/${haproxy_port_443}"
+        systemctl status haproxy --no-pager -l 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+        return 1
+    fi
 
     log "HAProxy running — port ${haproxy_port_80} (plain) + ${haproxy_port_443} (TLS)"
     log "SSL type: ${cert_type}"

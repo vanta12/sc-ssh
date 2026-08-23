@@ -73,6 +73,7 @@ users_create() {
     fi
 
     # Also setup cron checker
+    track_file_before_write /etc/cron.d/vpn-expire
     cat > /etc/cron.d/vpn-expire <<CRON
 # Check expired users every 10 minutes
 */10 * * * * root bash ${AUTOSCRIPT_USER_HELPER:-/opt/autoscript/runtime/lib/06-users.sh} user-purge-expired 2>/dev/null
