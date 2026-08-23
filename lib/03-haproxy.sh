@@ -54,14 +54,15 @@ haproxy_install() {
                     sleep 2
                 fi
 
-                # Generate random email + name
-                local rand_id rand_user rand_dom rand_tld
+                # Use a syntactically valid mailbox. Let's Encrypt only needs a
+                # reachable-looking contact address; do not invent invalid TLDs.
+                local rand_id rand_user email_domain
+                local email_domains=(gmail.com yahoo.com icloud.com hotmail.com outlook.com aol.com)
                 rand_id=$(openssl rand -hex 5)
                 rand_user=$(openssl rand -hex 3)
-                rand_dom=$(openssl rand -hex 4)
-                rand_tld=$(openssl rand -hex 2)
+                email_domain="${email_domains[$((RANDOM % ${#email_domains[@]}))]}"
                 local name="user_${rand_id}"
-                local email="${rand_user}@${rand_dom}.${rand_tld}"
+                local email="${rand_user}@${email_domain}"
                 info "Random identity: $name <$email>"
 
                 # Install certbot

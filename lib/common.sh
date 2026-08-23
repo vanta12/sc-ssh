@@ -138,15 +138,41 @@ enable_service() {
     local svc=$1
     systemctl daemon-reload 2>/dev/null || true
     systemctl enable "$svc" 2>/dev/null || ok "$svc enable — skipped"
-    timeout 30 systemctl start "$svc" 2>/dev/null || \
-        { service "$svc" start 2>/dev/null || ok "$svc restart: manual restart mungkin diperlukan"; }
+
+    if timeout 30 systemctl start "$svc" 2>/dev/null && systemctl is-active --quiet "$svc"; then
+        return 0
+    fi
+
+    # SysV fallback is only valid when systemd is unavailable. Do not hide a
+    # failed service start behind a success-looking warning.
+    if ! command -v systemctl >/dev/null 2>&1 && service "$svc" start 2>/dev/null; then
+        return 0
+    fi
+
+    err "$svc gagal start"
+    systemctl status "$svc" --no-pager -l 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+    return 1
 }
 
 # ── Check port ──────────────────────────────────────────────
 port_in_use() {
     local port=$1
-    ss -tlnp 2>/dev/null | grep -q ":${port} " && return 0
-    netstat -tlnp 2>/dev/null | grep -q ":${port} " && return 0
+    if command -v ss >/dev/null 2>&1; then
+        ss -H -ltn "sport = :${port}" 2>/dev/null | grep -q . && return 0
+        ss -H -lnu "sport = :${port}" 2>/dev/null | grep -q . && return 0
+    fi
+    netstat -ltnu 2>/dev/null | awk -v p=":${port}" '$4 ~ p "$" || $4 ~ p "[[:space:]]" { found=1 } END { exit !found }' && return 0
+    return 1
+}
+
+wait_for_port() {
+    local port=$1
+    local attempts=${2:-20}
+    while [ "$attempts" -gt 0 ]; do
+        port_in_use "$port" && return 0
+        sleep 0.5
+        attempts=$((attempts - 1))
+    done
     return 1
 }
 

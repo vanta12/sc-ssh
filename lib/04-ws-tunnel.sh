@@ -233,9 +233,11 @@ SYSTEMD
 
     enable_service ws-tunnel
 
-    if port_in_use "$listen_port"; then
+    if wait_for_port "$listen_port" 20; then
         log "WS Tunnel running on port $listen_port ✓"
     else
-        warn "WS Tunnel mungkin tidak listen — cek: systemctl status ws-tunnel"
+        err "WS Tunnel tidak listen di port $listen_port"
+        systemctl status ws-tunnel --no-pager -l 2>&1 | tee -a "$LOG_FILE" >/dev/null || true
+        return 1
     fi
 }

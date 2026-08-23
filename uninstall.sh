@@ -17,7 +17,7 @@ AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
 
 # ── Stop + disable all services ─────────────────────────────
 echo "[1] Stopping services..."
-for svc in ws-tunnel udpgw haproxy dropbear fail2ban; do
+for svc in ws-tunnel udpgw haproxy autoscript-dropbear dropbear fail2ban; do
     systemctl stop "$svc" 2>/dev/null || true
     systemctl disable "$svc" 2>/dev/null || true
 done
@@ -26,6 +26,7 @@ done
 echo "[2] Removing systemd units..."
 rm -f /etc/systemd/system/udpgw.service
 rm -f /etc/systemd/system/ws-tunnel.service
+rm -f /etc/systemd/system/autoscript-dropbear.service
 rm -rf /lib/systemd/system/dropbear.service.d /etc/systemd/system/dropbear.service.d 2>/dev/null || true
 systemctl daemon-reload 2>/dev/null || true
 systemctl reset-failed 2>/dev/null || true
@@ -56,9 +57,10 @@ rm -rf /etc/letsencrypt/renewal/vpn-* 2>/dev/null || true
 
 # ── Flush iptables rules ────────────────────────────────────
 echo "[7] Flushing iptables rules..."
+iptables -D INPUT -p tcp --dport 143 -j RATE_SSH 2>/dev/null || true
+iptables -D INPUT -m state --state INVALID -j DROP 2>/dev/null || true
 iptables -F RATE_SSH 2>/dev/null || true
 iptables -X RATE_SSH 2>/dev/null || true
-iptables -D INPUT -m state --state INVALID -j DROP 2>/dev/null || true
 rm -f /etc/iptables/rules.v4
 
 # ── Restart remaining services ──────────────────────────────
