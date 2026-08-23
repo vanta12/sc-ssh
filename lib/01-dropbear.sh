@@ -52,25 +52,12 @@ EOF
 
     # Keep existing OpenSSH on port 22 as admin fallback.
     # Dropbear runs alongside it on port 143.
-    # Dropbear uses lsb init on Ubuntu — add systemd override
-    local drop_dir="/lib/systemd/system/dropbear.service.d"
-    mkdir -p "$drop_dir"
-    cat > "$drop_dir/override.conf" <<SYSTEMD
-[Unit]
-After=network.target network-online.target
-
-[Service]
-Type=forking
-Environment="DEBIAN_FRONTEND=noninteractive"
-ExecStart=/usr/sbin/dropbear -F -K 300 -I 60 -m -b /etc/dropbear.banner -p ${port}
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-SYSTEMD
-    systemctl daemon-reload
-
-    enable_service dropbear
+    # Dropbear runs alongside OpenSSH on port 143.
+    # Use init script directly — avoids systemd override conflicts.
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable dropbear 2>/dev/null || true
+    service dropbear start 2>/dev/null
+    sleep 2
 
     if ! port_in_use "$port"; then
         die "Dropbear gagal listen di port $port; OpenSSH tetap tidak disentuh"
