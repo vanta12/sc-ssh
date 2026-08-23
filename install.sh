@@ -102,6 +102,15 @@ acquire_lock
 check_internet || warn "Tidak ada internet — beberapa fitur mungkin gagal"
 detect_os
 
+DOMAIN=""
+if [ -r /dev/tty ]; then
+    read -rp "Domain (kosong = self-signed): " DOMAIN </dev/tty || DOMAIN=""
+fi
+if [ -n "$DOMAIN" ] && ! validate_fqdn "$DOMAIN"; then
+    warn "Format domain tidak valid; memakai self-signed certificate"
+    DOMAIN=""
+fi
+
 section "FULL INSTALL"
 source "${LIB_DIR}/01-dropbear.sh"
 source "${LIB_DIR}/02-badvpn.sh"
