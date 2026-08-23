@@ -137,8 +137,9 @@ backup_file() {
 enable_service() {
     local svc=$1
     systemctl daemon-reload 2>/dev/null || true
-    systemctl enable "$svc" 2>/dev/null || ok "$svc enable — skipped (not a systemd unit)"
-    systemctl restart "$svc" 2>/dev/null || ok "$svc restart — manual restart mungkin diperlukan"
+    systemctl enable "$svc" 2>/dev/null || ok "$svc enable — skipped"
+    timeout 30 systemctl start "$svc" 2>/dev/null || \
+        { service "$svc" start 2>/dev/null || ok "$svc restart: manual restart mungkin diperlukan"; }
 }
 
 # ── Check port ──────────────────────────────────────────────
