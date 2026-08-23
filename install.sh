@@ -93,38 +93,6 @@ HAPROXY_PORT_80=80
 HAPROXY_PORT_443=443
 DOMAIN=""
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --dropbear-port) DROPBEAR_PORT="$2"; shift ;;
-        --badvpn-start) BADVPN_START="$2"; shift ;;
-        --ws-port) WS_PORT="$2"; shift ;;
-        --haproxy-port-80) HAPROXY_PORT_80="$2"; shift ;;
-        --haproxy-port-443) HAPROXY_PORT_443="$2"; shift ;;
-        --domain) DOMAIN="$2"; shift ;;
-        --force) ;;
-        --dry-run) DRY_RUN=true ;;
-        --help|-h)
-            echo "Usage: sudo bash install.sh [OPTIONS]"
-            echo ""
-            echo "Semua komponen selalu dipasang berurutan: 01 sampai 06."
-            echo ""
-            echo "Options:"
-            echo "  --dropbear-port N   Dropbear SSH port (default 143)"
-            echo "  --badvpn-start N    BadVPN UDP port (default 7300)"
-            echo "  --ws-port N         WS tunnel port (default 8880)"
-            echo "  --domain DOMAIN     Domain untuk Let's Encrypt"
-            echo "  --force             Compatibility flag; no prompt"
-            echo "  --dry-run           Simulate package actions"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
-    esac
-    shift
-done
-
 must_be_root
 setup_log
 acquire_lock

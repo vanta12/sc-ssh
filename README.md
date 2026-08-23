@@ -40,7 +40,7 @@ Saat dijalankan, `install.sh` selalu mengunduh `lib/`, `src/`, dan `bin/badvpn-u
 06 User database
 ```
 
-Binary BadVPN diverifikasi dengan SHA-256 dan saat ini tersedia untuk `x86_64/amd64`. Opsi port/domain hanya untuk konfigurasi; tidak ada instalasi per-komponen.
+Binary BadVPN diverifikasi dengan SHA-256 dan saat ini tersedia untuk `x86_64/amd64`. Installer memakai konfigurasi default tetap; tidak ada subcommand atau opsi instalasi.
 
 ## Konfigurasi di HTTP Injector
 

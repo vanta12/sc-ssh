@@ -145,7 +145,6 @@ EMAIL="${RAND_USER}@${RAND_DOM}.${RAND_TLD}"
 certbot certonly --standalone \
   --non-interactive --agree-tos \
   --email "$EMAIL" \
-  --domain "$DOMAIN" \
   --cert-name "vpn-${RAND_ID}"
 ```
 
@@ -554,19 +553,13 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
 
 ## Mode Eksekusi
 
-`install.sh` hanya punya satu alur. Saat dipanggil, bootstrap mengunduh runtime dari GitHub lalu menjalankan semua tahap berurutan `01` sampai `07` tanpa menu dan tanpa subcommand.
+`install.sh` hanya punya satu alur. Saat dipanggil, bootstrap mengunduh runtime dari GitHub lalu menjalankan semua tahap berurutan `01` sampai `06` tanpa menu, subcommand, atau opsi.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | sudo bash
 ```
 
-Konfigurasi opsional tetap tersedia sebagai flag:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | \
-  sudo bash -s -- --ssh-port 22 --dropbear-port 143 \
-  --badvpn-start 7300 --ws-port 8880 --domain vpn.example.com
-```
+Installer memakai konfigurasi default tetap: Dropbear `143`, BadVPN `7300`, WS `8880`, HAProxy `80/443`.
 
 Urutan setup:
 
