@@ -18,6 +18,8 @@ AUTOSCRIPT_DATA_DIR="${AUTOSCRIPT_ROOT}/data"
 AUTOSCRIPT_PACKAGE_MANIFEST="${AUTOSCRIPT_DATA_DIR}/packages.list"
 AUTOSCRIPT_BACKUP_MANIFEST="${AUTOSCRIPT_DATA_DIR}/backups.list"
 AUTOSCRIPT_CREATED_MANIFEST="${AUTOSCRIPT_DATA_DIR}/created.list"
+AUTOSCRIPT_USER_MANIFEST="${AUTOSCRIPT_DATA_DIR}/users.list"
+AUTOSCRIPT_SERVICE_MANIFEST="${AUTOSCRIPT_DATA_DIR}/services.list"
 AUTOSCRIPT_LOCK_FILE="/run/lock/autoscript-install.lock"
 AUTOSCRIPT_LOCK_FD=""
 DRY_RUN=false
@@ -165,9 +167,22 @@ track_file_before_write() {
     fi
 }
 
+track_user() {
+    manifest_add "$AUTOSCRIPT_USER_MANIFEST" "$1"
+}
+
+track_service_state() {
+    local svc=$1 enabled active
+    [ -f "$AUTOSCRIPT_SERVICE_MANIFEST" ] && grep -Fq "${svc}|" "$AUTOSCRIPT_SERVICE_MANIFEST" && return 0
+    enabled="$(systemctl is-enabled "$svc" 2>/dev/null || true)"
+    active="$(systemctl is-active "$svc" 2>/dev/null || true)"
+    manifest_add "$AUTOSCRIPT_SERVICE_MANIFEST" "${svc}|${enabled}|${active}"
+}
+
 # ── systemd daemon-reload + enable + start ──────────────────
 enable_service() {
     local svc=$1
+    track_service_state "$svc"
     systemctl daemon-reload 2>/dev/null || true
     systemctl enable "$svc" 2>/dev/null || ok "$svc enable — skipped"
 
@@ -270,6 +285,24 @@ get_public_ip() {
         || curl -s4 --max-time 5 ipinfo.io/ip 2>/dev/null \
         || curl -s4 --max-time 5 icanhazip.com 2>/dev/null \
         || hostname -I 2>/dev/null | awk '{print $1}'
+}
+
+get_public_ip6() {
+    curl -s6 --max-time 5 ifconfig.me 2>/dev/null \
+        || curl -s6 --max-time 5 ipinfo.io/ip 2>/dev/null \
+        || hostname -I 2>/dev/null | tr ' ' '\n' | awk '/:/{print; exit}'
+}
+
+domain_ipv6_matches() {
+    local domain=$1 dns_ipv6 vps_ipv6
+    dns_ipv6=$(dig +short AAAA "$domain" 2>/dev/null | head -1)
+    [ -z "$dns_ipv6" ] && return 0
+    vps_ipv6=$(get_public_ip6)
+    if [ -z "$vps_ipv6" ] || [ "$dns_ipv6" != "$vps_ipv6" ]; then
+        warn "DNS AAAA $domain tidak cocok dengan IPv6 VPS; melewati Let's Encrypt"
+        return 1
+    fi
+    return 0
 }
 
 # ── Validate FQDN ───────────────────────────────────────────

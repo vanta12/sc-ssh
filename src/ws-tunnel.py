@@ -370,9 +370,13 @@ def _handle_client(client_sock, addr):
     ip = addr[0]
     port = addr[1]
 
-    # Rate check
-    if not rate_check(ip) or is_banned(ip):
-        log("warn", f"Rate limited", ip=ip, port=port)
+    # Rate check. Repeated abuse is blocked for ban duration.
+    if is_banned(ip):
+        log("warn", "Banned client rejected", ip=ip, port=port)
+        client_sock.close()
+        return
+    if not rate_check(ip):
+        ban_ip(ip)
         client_sock.close()
         return
 

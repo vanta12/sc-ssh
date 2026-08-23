@@ -30,7 +30,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${AUTOSCRIPT_ROOT}/bin/badvpn-udpgw --listen-addr 127.0.0.1:${start_port} --max-clients ${max_clients}
+ExecStart=${AUTOSCRIPT_ROOT}/bin/badvpn-udpgw --listen-addr 0.0.0.0:${start_port} --max-clients ${max_clients}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535

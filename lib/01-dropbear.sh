@@ -12,6 +12,7 @@ dropbear_install() {
 
     # Package-native Dropbear service can conflict with OpenSSH or hang via
     # its SysV wrapper. Stop only Dropbear; never touch OpenSSH.
+    track_service_state dropbear
     timeout 30 systemctl disable --now dropbear 2>/dev/null || true
     timeout 30 service dropbear stop 2>/dev/null || true
 
@@ -73,7 +74,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/dropbear -F -E -K 300 -I 60 -m -b /etc/dropbear.banner -p ${port}
+ExecStart=/usr/sbin/dropbear -F -E -K 300 -I 60 -m -w -b /etc/dropbear.banner -p ${port}
 Restart=always
 RestartSec=3
 

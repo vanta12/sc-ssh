@@ -5,6 +5,11 @@
 
 USER_DB="${AUTOSCRIPT_ROOT:-/opt/autoscript}/data/users.db"
 USER_LOG="${AUTOSCRIPT_ROOT:-/opt/autoscript}/logs/vpn-users.log"
+COMMON_HELPER="${AUTOSCRIPT_COMMON_HELPER:-${AUTOSCRIPT_ROOT:-/opt/autoscript}/runtime/lib/common.sh}"
+if ! declare -F random_str >/dev/null 2>&1; then
+    [ -f "$COMMON_HELPER" ] || { printf 'common.sh tidak ditemukan\n' >&2; exit 1; }
+    source "$COMMON_HELPER"
+fi
 
 users_init() {
     local data_dir
@@ -20,6 +25,8 @@ users_create() {
     local username="${2:-}"
     local password="${3:-}"
 
+    [[ "$duration_hours" =~ ^[1-9][0-9]*$ ]] || { err "Durasi user tidak valid"; return 1; }
+
     # Generate random username if not provided
     if [ -z "$username" ]; then
         local prefix
@@ -28,6 +35,10 @@ users_create() {
         suffix=$(random_num 10 99)
         username="${prefix}${suffix}"
     fi
+    [[ "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || {
+        err "Username tidak valid: $username"
+        return 1
+    }
 
     # Generate random password if not provided
     if [ -z "$password" ]; then
@@ -46,26 +57,34 @@ users_create() {
         return 1
     fi
 
-    # Create system user (no shell, no home)
-    useradd -M -s /bin/false "$username" 2>/dev/null || {
-        useradd -M -s /usr/sbin/nologin "$username" 2>/dev/null || {
-            err "Gagal membuat user: $username"
-            return 1
-        }
+    # User needs valid shell for SSH forwarding and ssh -N.
+    useradd -M -s /bin/bash "$username" 2>/dev/null || {
+        err "Gagal membuat user: $username"
+        return 1
     }
+    track_user "$username"
 
-    # Set password
-    echo "${username}:${password}" | chpasswd 2>/dev/null || {
-        warn "Gagal set password untuk $username"
-    }
+    # Never record user whose password was not applied.
+    if ! printf '%s:%s\n' "$username" "$password" | chpasswd 2>/dev/null; then
+        userdel -f "$username" 2>/dev/null || true
+        sed -i "\|^${username}$|d" "$AUTOSCRIPT_USER_MANIFEST" 2>/dev/null || true
+        err "Gagal set password untuk $username"
+        return 1
+    fi
 
     # Store only a password hash. Cleartext password is returned once above.
     if ! command -v openssl >/dev/null 2>&1; then
         install_pkg openssl
     fi
     local password_hash
-    password_hash=$(openssl passwd -6 "$password") || die "Gagal membuat password hash"
-    echo "${username}|${password_hash}|$(date '+%Y-%m-%d %H:%M:%S')|${expire_date}|${duration_hours}" >> "$USER_DB"
+    password_hash=$(openssl passwd -6 "$password") || {
+        userdel -f "$username" 2>/dev/null || true
+        return 1
+    }
+    if ! printf '%s|%s|%s|%s|%s\n' "$username" "$password_hash" "$(date '+%Y-%m-%d %H:%M:%S')" "$expire_date" "$duration_hours" >> "$USER_DB"; then
+        userdel -f "$username" 2>/dev/null || true
+        return 1
+    fi
 
     # Schedule deletion via cron (at)
     if command -v at &>/dev/null; then
@@ -187,102 +206,12 @@ users_extend() {
     log "User extended: $username (+${extra_hours}h)"
 }
 
-users_menu() {
-    while true; do
-        clear
-        banner
-        echo ""
-        echo -e "${BOLD}${CYAN}  USER MANAGEMENT MENU${NC}"
-        echo ""
-        echo "  [1] Create trial user"
-        echo "  [2] List active users"
-        echo "  [3] Delete user"
-        echo "  [4] Extend user"
-        echo "  [5] Purge all expired"
-        echo "  [6] Back to main menu"
-        echo ""
-        read -rp "  Pilih [1-6]: " choice
-
-        case "$choice" in
-            1)
-                echo ""
-                echo "  Pilih durasi trial:"
-                echo "    [1] 2 jam"
-                echo "    [2] 6 jam"
-                echo "    [3] 12 jam"
-                echo "    [4] 1 hari"
-                echo "    [5] 3 hari"
-                echo "    [6] 7 hari"
-                echo "    [7] Custom (jam)"
-                read -rp "  > " dur_choice
-                case "$dur_choice" in
-                    1) HOURS=2 ;;
-                    2) HOURS=6 ;;
-                    3) HOURS=12 ;;
-                    4) HOURS=24 ;;
-                    5) HOURS=72 ;;
-                    6) HOURS=168 ;;
-                    7) read -rp "  Jam: " HOURS ;;
-                    *) warn "Invalid, default 2 jam"; HOURS=2 ;;
-                esac
-                pass=$(users_create "$HOURS")
-                if [ $? -eq 0 ]; then
-                    info "User trial berhasil dibuat!"
-                    echo "  Username: $(tail -1 "$USER_DB" | cut -d'|' -f1)"
-                    echo "  Password: $pass"
-                    echo "  Expire  : $HOURS jam"
-                fi
-                read -rp "  [Enter] lanjut..." _
-                ;;
-            2)
-                users_list
-                read -rp "  [Enter] lanjut..." _
-                ;;
-            3)
-                read -rp "  Username: " uname
-                users_delete "$uname"
-                read -rp "  [Enter] lanjut..." _
-                ;;
-            4)
-                read -rp "  Username: " uname
-                read -rp "  Tambahan jam: " hours
-                users_extend "$uname" "$hours"
-                read -rp "  [Enter] lanjut..." _
-                ;;
-            5)
-                users_purge_expired
-                info "Semua expired user telah dihapus"
-                read -rp "  [Enter] lanjut..." _
-                ;;
-            6)
-                return
-                ;;
-            *)
-                warn "Pilihan tidak valid"
-                sleep 1
-                ;;
-        esac
-    done
-}
-
-# ── CLI mode ───────────────────────────────────────────────
+# Cron-only entry points. Installer has no interactive menu or subcommands.
 case "${1:-}" in
-    user-create)
-        users_create "${2:-2}" "${3:-}" "${4:-}"
-        ;;
     user-delete)
         users_delete "${2:-}"
         ;;
-    user-list)
-        users_list
-        ;;
-    user-extend)
-        users_extend "${2:-}" "${3:-0}"
-        ;;
     user-purge-expired)
         users_purge_expired
-        ;;
-    user-menu)
-        users_menu
         ;;
 esac

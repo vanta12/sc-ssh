@@ -23,6 +23,8 @@ DATA_DIR="${AUTOSCRIPT_ROOT}/data"
 PACKAGE_MANIFEST="${DATA_DIR}/packages.list"
 BACKUP_MANIFEST="${DATA_DIR}/backups.list"
 CREATED_MANIFEST="${DATA_DIR}/created.list"
+USER_MANIFEST="${DATA_DIR}/users.list"
+SERVICE_MANIFEST="${DATA_DIR}/services.list"
 CERT_OWNED_FILE="${DATA_DIR}/certificate-owned"
 OWNED_DOMAIN=""
 if [ -s "$CERT_OWNED_FILE" ]; then
@@ -121,6 +123,28 @@ if [ -n "$OWNED_DOMAIN" ]; then
         rm -f -- "/etc/letsencrypt/renewal/$domain.conf"
     fi
 fi
+if [ -f "$USER_MANIFEST" ]; then
+    while IFS= read -r username; do
+        if [ -n "$username" ] && id "$username" >/dev/null 2>&1; then
+            pkill -u "$username" 2>/dev/null || true
+            userdel -f "$username" 2>/dev/null || true
+        fi
+    done < "$USER_MANIFEST"
+fi
+
+# Restore enabled/active state for services that predated AutoScript.
+if [ -f "$SERVICE_MANIFEST" ]; then
+    while IFS='|' read -r svc enabled active; do
+        [ -n "$svc" ] || continue
+        grep -Fxq "$svc" "$PACKAGE_MANIFEST" 2>/dev/null && continue
+        case "$enabled" in
+            enabled|enabled-runtime|static) systemctl enable "$svc" 2>/dev/null || true ;;
+            *) systemctl disable "$svc" 2>/dev/null || true ;;
+        esac
+        [ "$active" = active ] && systemctl start "$svc" 2>/dev/null || true
+    done < "$SERVICE_MANIFEST"
+fi
+
 rm -rf -- "$AUTOSCRIPT_ROOT"
 
 # ── Restart remaining services ──────────────────────────────

@@ -16,12 +16,21 @@ ws_tunnel_install() {
     fi
 
     local deploy_dir="${AUTOSCRIPT_ROOT}/ws-tunnel"
-    mkdir -p "$deploy_dir"
+    local ws_user="autoscript-ws"
+    if ! id "$ws_user" >/dev/null 2>&1; then
+        useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin "$ws_user" 2>/dev/null || \
+            die "Gagal membuat user service WS"
+        track_user "$ws_user"
+    fi
+    mkdir -p "$deploy_dir" "${AUTOSCRIPT_ROOT}/logs"
+    chown "$ws_user:$ws_user" "${AUTOSCRIPT_ROOT}/logs"
+    chmod 750 "${AUTOSCRIPT_ROOT}/logs"
 
     # Use source downloaded by install.sh bootstrap.
     local src="${AUTOSCRIPT_WS_SOURCE:-}"
     [ -f "$src" ] || src="${SCRIPT_DIR:-}/src/ws-tunnel.py"
     [ -f "$src" ] || src="./src/ws-tunnel.py"
+    [ -f "$src" ] || die "ws-tunnel.py source terverifikasi tidak ditemukan"
 
     if [ ! -f "$src" ]; then
         warn "ws-tunnel.py source tidak ditemukan di $src"
@@ -215,6 +224,14 @@ After=network.target
 
 [Service]
 Type=simple
+User=autoscript-ws
+Group=autoscript-ws
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=${AUTOSCRIPT_ROOT}/logs
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 Environment="WS_HOST=127.0.0.1"
 Environment="WS_PORT=${listen_port}"
 Environment="WS_BACKEND_HOST=${backend_host}"

@@ -58,6 +58,7 @@ bootstrap_runtime() {
     printf '[INFO] Downloading installer runtime to %s\n' "$RUNTIME_DIR"
     mkdir -p "$LIB_DIR" "$SRC_DIR" "$BIN_DIR"
 
+    bootstrap_download "SHA256SUMS" "${RUNTIME_DIR}/SHA256SUMS"
     bootstrap_download "lib/common.sh" "${LIB_DIR}/common.sh"
     bootstrap_download "lib/01-dropbear.sh" "${LIB_DIR}/01-dropbear.sh"
     bootstrap_download "lib/02-badvpn.sh" "${LIB_DIR}/02-badvpn.sh"
@@ -71,6 +72,9 @@ bootstrap_runtime() {
 
     chmod 755 "${LIB_DIR}"/*.sh "${SRC_DIR}/ws-tunnel.py" "${BIN_DIR}/badvpn-udpgw"
     chmod 644 "${SRC_DIR}/haproxy.cfg.tpl"
+
+    (cd "$RUNTIME_DIR" && sha256sum -c --strict SHA256SUMS) ||
+        bootstrap_die "Checksum runtime tidak cocok"
 
     case "$(uname -m)" in
         x86_64|amd64) ;;
@@ -94,6 +98,7 @@ export AUTOSCRIPT_BADVPN_BINARY="${BIN_DIR}/badvpn-udpgw"
 export AUTOSCRIPT_WS_SOURCE="${SRC_DIR}/ws-tunnel.py"
 export AUTOSCRIPT_HAPROXY_TEMPLATE="${SRC_DIR}/haproxy.cfg.tpl"
 export AUTOSCRIPT_USER_HELPER="${LIB_DIR}/06-users.sh"
+export AUTOSCRIPT_COMMON_HELPER="${LIB_DIR}/common.sh"
 
 cleanup_runtime() {
     local exit_code=$?

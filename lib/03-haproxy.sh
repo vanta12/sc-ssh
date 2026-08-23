@@ -53,19 +53,10 @@ haproxy_install() {
             # Step 3: Compare with VPS IP
             local vps_ip
             vps_ip=$(get_public_ip)
-            if [ "$dns_ip" = "$vps_ip" ]; then
-                log "DNS A record OK: $domain → $dns_ip (cocok dengan VPS)"
+            if [ "$dns_ip" = "$vps_ip" ] && domain_ipv6_matches "$domain"; then
+                log "DNS A/AAAA record OK: $domain"
 
-                # Use a syntactically valid mailbox. Let's Encrypt only needs a
-                # reachable-looking contact address; do not invent invalid TLDs.
-                local rand_id rand_user email_domain
-                local email_domains=(gmail.com yahoo.com icloud.com hotmail.com outlook.com aol.com)
-                rand_id=$(openssl rand -hex 5)
-                rand_user=$(openssl rand -hex 3)
-                email_domain="${email_domains[$((RANDOM % ${#email_domains[@]}))]}"
-                local name="user_${rand_id}"
-                local email="${rand_user}@${email_domain}"
-                info "Random identity: $name <$email>"
+                info "Requesting Let's Encrypt certificate without fake contact email"
 
                 # Install certbot
                 log "Installing certbot..."
@@ -87,7 +78,7 @@ haproxy_install() {
                     log "Requesting Let's Encrypt certificate (domain=${domain})..."
                     if certbot certonly --standalone \
                         --non-interactive --agree-tos \
-                        --email "$email" \
+                        --register-unsafely-without-email \
                         --domain "$domain" \
                         2>&1 | tee -a "$LOG_FILE"; then
 
