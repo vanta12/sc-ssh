@@ -6,6 +6,9 @@
 
 set -euo pipefail
 IFS=$'\n\t'
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export APT_LISTCHANGES_FRONTEND=none
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
