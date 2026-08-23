@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================
-#  01-dropbear.sh — Primary SSH service
+#  01-dropbear.sh — Additional SSH service
 # ============================================================
 
 dropbear_install() {
     local port="${1:-143}"
 
-    section "Installing Dropbear as primary SSH"
+    section "Installing Dropbear alongside OpenSSH"
 
     install_pkg dropbear
 
@@ -50,14 +50,13 @@ EOF
         dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null || true
     fi
 
-    # Start Dropbear before removing OpenSSH; ports differ (143 vs 22).
+    # Keep existing OpenSSH on port 22 as admin fallback.
+    # Dropbear runs alongside it on port 143.
     enable_service dropbear
 
     if ! port_in_use "$port"; then
-        die "Dropbear gagal listen di port $port; SSH lama tetap dipertahankan"
+        die "Dropbear gagal listen di port $port; OpenSSH tetap tidak disentuh"
     fi
 
-    systemctl disable --now ssh sshd 2>/dev/null || true
-    apt-get remove --purge -y -qq openssh-server openssh-sftp-server 2>/dev/null || true
-    log "Dropbear running on port $port ✓"
+    log "Dropbear running on port $port; existing OpenSSH remains available"
 }

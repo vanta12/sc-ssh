@@ -7,7 +7,8 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 | Komponen | Port Internal | Deskripsi |
 |----------|--------------|-----------|
-| Dropbear | 143 | SSH server utama + hardening |
+| OpenSSH | 22 | SSH admin utama |
+| Dropbear | 143 | SSH tambahan untuk tunneling |
 | BadVPN/UDPGW | 7300/UDP | Precompiled UDP tunnel binary |
 | HAProxy | 80, 443 | Port sharing + SSL termination |
 | Python WS Tunnel | 8880 | Custom raw WebSocket (no dependencies) |
@@ -32,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | su
 Saat dijalankan, `install.sh` meminta domain sekali. Isi domain valid untuk mencoba Let's Encrypt; tekan Enter untuk memakai self-signed certificate. Setelah input domain, script otomatis mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari branch `main`, lalu menjalankan setup berurutan:
 
 ```text
-01 Dropbear (SSH utama)
+01 Dropbear SSH tambahan (:143)
 02 BadVPN/UDPGW
 03 HAProxy
 04 WebSocket tunnel
@@ -96,7 +97,7 @@ autoscript/
 
 ## User Management
 
-User database diinisialisasi otomatis pada tahap `06-users.sh`. Dropbear menjadi satu-satunya SSH server.
+OpenSSH tetap berjalan di `22/TCP` sebagai jalur admin. Dropbear berjalan tambahan di `143/TCP`. User database diinisialisasi otomatis pada tahap `06-users.sh`.
 
 ## Keamanan
 

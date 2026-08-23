@@ -69,8 +69,9 @@ frontend https-in
 ```
 
 Backend mapping:
-- `ssh_direct` → 127.0.0.1:143 (Dropbear)
+- `ssh_direct` → 127.0.0.1:143 (Dropbear tunneling)
 - `ssh_local`  → 127.0.0.1:143 (Dropbear via TLS termination)
+- `ssh_admin`  → 127.0.0.1:22 (OpenSSH admin)
 - App data       → `/opt/autoscript`
 - `ws_tunnel`  → 127.0.0.1:8880 (Python raw WS)
 - `ws_tunnel_ssl` → 127.0.0.1:8880 (Python raw WS via TLS)
@@ -83,7 +84,8 @@ Backend mapping:
 - Port 22 (internal), bisa langsung diakses via port 80/443
 - Lightweight, < 5 MB RAM
 - Password authentication dan public key authentication
-- Dropbear menjadi satu-satunya SSH server
+- OpenSSH `22/TCP` tetap dipertahankan sebagai jalur admin
+- Dropbear berjalan tambahan di `143/TCP`
 
 ### 3. BadVPN/UDPGW
 - Port 7300 (start), range 7300-7399
@@ -323,7 +325,7 @@ HTTP Injector config:
   - Port: 80
   - Payload: (kosong, direct SSH)
 ```
-HAProxy sniff "SSH-" → route ke Dropbear :143
+HAProxy sniff "SSH-" → route ke Dropbear :143; admin tetap via OpenSSH :22
 
 ### Skenario 2: SSH over SSL Port 443
 ```
