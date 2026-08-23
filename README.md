@@ -83,6 +83,11 @@ autoscript/
 │   └── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
 ├── bin/
 │   └── badvpn-udpgw      ← Precompiled BadVPN UDPGW (x86_64)
+├── data/                 ← User database
+├── logs/                 ← Installer and user logs
+├── ssl/                  ← HAProxy certificates
+├── runtime/              ← Downloaded lib/src runtime
+├── ws-tunnel/            ← Deployed WebSocket source
 ├── config/              ← Config templates
 ├── tests/               ← Test scripts
 └── README.md
@@ -113,4 +118,8 @@ User database diinisialisasi otomatis pada tahap `06-users.sh`. Dropbear menjadi
 
 ## Log
 
-Semua log disimpan di: `/var/log/vpn-install.log`
+Semua data aplikasi disimpan di `/opt/autoscript`.
+
+Log installer: `/opt/autoscript/logs/vpn-install.log`.
+User database: `/opt/autoscript/data/users.db`.
+Certificate HAProxy: `/opt/autoscript/ssl/`.

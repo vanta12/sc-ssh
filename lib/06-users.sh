@@ -3,8 +3,8 @@
 #  users.sh — Multi-user trial management
 # ============================================================
 
-USER_DB="/etc/vpn-ssh/users.db"
-USER_LOG="/var/log/vpn-users.log"
+USER_DB="${AUTOSCRIPT_ROOT:-/opt/autoscript}/data/users.db"
+USER_LOG="${AUTOSCRIPT_ROOT:-/opt/autoscript}/logs/vpn-users.log"
 
 users_init() {
     mkdir -p "$(dirname "$USER_DB")"

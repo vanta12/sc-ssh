@@ -11,8 +11,9 @@ export NEEDRESTART_MODE=a
 export APT_LISTCHANGES_FRONTEND=none
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
 REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
-RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-$(mktemp -d /tmp/autoscript-runtime.XXXXXX)}"
+RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-${AUTOSCRIPT_ROOT}/runtime}"
 LIB_DIR="${RUNTIME_DIR}/lib"
 SRC_DIR="${RUNTIME_DIR}/src"
 BIN_DIR="${RUNTIME_DIR}/bin"
@@ -80,12 +81,10 @@ export AUTOSCRIPT_WS_SOURCE="${SRC_DIR}/ws-tunnel.py"
 cleanup_runtime() {
     local exit_code=$?
     cleanup
-    case "$RUNTIME_DIR" in
-        /tmp/autoscript-runtime.*) rm -rf "$RUNTIME_DIR" ;;
-    esac
     exit "$exit_code"
 }
 
+export AUTOSCRIPT_ROOT
 source "${LIB_DIR}/common.sh"
 trap cleanup_runtime EXIT
 

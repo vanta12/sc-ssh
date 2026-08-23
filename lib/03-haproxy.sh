@@ -17,7 +17,7 @@ haproxy_install() {
     install_pkg dnsutils
 
     local ha_conf="/etc/haproxy/haproxy.cfg"
-    local ssl_dir="/etc/haproxy/ssl"
+    local ssl_dir="${AUTOSCRIPT_ROOT}/ssl"
     mkdir -p "$ssl_dir"
     backup_file "$ha_conf"
 

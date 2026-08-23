@@ -12,7 +12,8 @@ CYAN='\033[0;36m'; BLUE='\033[0;34m'; PURPLE='\033[0;35m'
 BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
 
 # ── Flags ───────────────────────────────────────────────────
-LOG_FILE="/var/log/vpn-install.log"
+AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
+LOG_FILE="${AUTOSCRIPT_ROOT}/logs/vpn-install.log"
 DRY_RUN=false
 FORCE=false
 

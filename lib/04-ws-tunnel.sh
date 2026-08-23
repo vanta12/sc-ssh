@@ -15,7 +15,7 @@ ws_tunnel_install() {
         install_pkg python3
     fi
 
-    local deploy_dir="/opt/vpn-ssh"
+    local deploy_dir="${AUTOSCRIPT_ROOT}/ws-tunnel"
     mkdir -p "$deploy_dir"
 
     # Use source downloaded by install.sh bootstrap.
@@ -218,7 +218,7 @@ Environment="WS_HOST=127.0.0.1"
 Environment="WS_PORT=${listen_port}"
 Environment="WS_BACKEND_HOST=${backend_host}"
 Environment="WS_BACKEND_PORT=${backend_port}"
-ExecStart=/usr/bin/python3 /opt/vpn-ssh/ws-tunnel.py
+ExecStart=/usr/bin/python3 ${AUTOSCRIPT_ROOT}/ws-tunnel/ws-tunnel.py
 Restart=always
 RestartSec=3
 LimitNOFILE=65535

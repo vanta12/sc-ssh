@@ -9,13 +9,14 @@ badvpn_install() {
 
     section "Installing BadVPN/UDPGW"
 
-    local bin_path="/usr/local/bin/badvpn-udpgw"
+    local bin_path="${AUTOSCRIPT_ROOT}/bin/badvpn-udpgw"
     local downloaded_bin="${AUTOSCRIPT_BADVPN_BINARY:-}"
 
     if [ -z "$downloaded_bin" ] || [ ! -x "$downloaded_bin" ]; then
         die "Binary BadVPN hasil unduhan tidak ditemukan di runtime"
     fi
 
+    mkdir -p "$(dirname "$bin_path")"
     install -m 0755 "$downloaded_bin" "$bin_path"
     log "badvpn-udpgw dari GitHub dipasang ke $bin_path"
 
@@ -28,7 +29,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/badvpn-udpgw --listen-addr 127.0.0.1:${start_port} --max-clients ${max_clients}
+ExecStart=${AUTOSCRIPT_ROOT}/bin/badvpn-udpgw --listen-addr 127.0.0.1:${start_port} --max-clients ${max_clients}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535

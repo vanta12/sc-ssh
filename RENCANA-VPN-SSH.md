@@ -71,6 +71,7 @@ frontend https-in
 Backend mapping:
 - `ssh_direct` → 127.0.0.1:143 (Dropbear)
 - `ssh_local`  → 127.0.0.1:143 (Dropbear via TLS termination)
+- App data       → `/opt/autoscript`
 - `ws_tunnel`  → 127.0.0.1:8880 (Python raw WS)
 - `ws_tunnel_ssl` → 127.0.0.1:8880 (Python raw WS via TLS)
 
@@ -177,7 +178,7 @@ ln -sf /etc/haproxy/ssl/vpn.self.pem /etc/haproxy/ssl/vpn.pem
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-0 3 */2 * * root certbot renew --quiet --non-interactive && cat /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/letsencrypt/live/$DOMAIN/privkey.pem > /etc/haproxy/ssl/vpn.pem && systemctl reload haproxy
+0 3 */2 * * root certbot renew --quiet --non-interactive && cat /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/letsencrypt/live/$DOMAIN/privkey.pem > /opt/autoscript/ssl/vpn.pem && systemctl reload haproxy
 ```
 
 #### HAProxy SSL Config Final
@@ -450,7 +451,7 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               │ Berjalan otomatis setelah tahap 01-05 │
               │                                  │
               │ [6a] User database               │
-              │  • initialize /etc/vpn-ssh        │
+              │  • initialize /opt/autoscript/data │
               │  • initialize user database      │
               │  • setup user expiry             │
               │  • keep Dropbear as SSH utama    │
