@@ -77,16 +77,13 @@ haproxy_install() {
                 fi
 
                 if command -v certbot &>/dev/null; then
-                    # Keep Certbot lineage name stable and use same path for
-                    # HAProxy and renewal. Random cert names break path lookup.
-                    local cert_name="autoscript-${domain//./-}"
-                    local le_live="/etc/letsencrypt/live/${cert_name}"
-                    log "Requesting Let's Encrypt certificate (name=${cert_name})..."
+                    # Use Certbot's standard domain-based lineage path.
+                    local le_live="/etc/letsencrypt/live/${domain}"
+                    log "Requesting Let's Encrypt certificate (domain=${domain})..."
                     if certbot certonly --standalone \
                         --non-interactive --agree-tos \
                         --email "$email" \
                         --domain "$domain" \
-                        --cert-name "$cert_name" \
                         2>&1 | tee -a "$LOG_FILE"; then
 
 
