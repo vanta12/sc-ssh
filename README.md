@@ -27,10 +27,10 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 ### One-click install
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/vanta12/sc-ssh/5544200adb95376e93d8580018333ee6de41b34d/install.sh | sudo bash
 ```
 
-Saat dijalankan, `install.sh` meminta domain sekali. Isi domain valid untuk mencoba Let's Encrypt; tekan Enter untuk memakai self-signed certificate. Setelah input domain, script otomatis mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari branch `main`, lalu menjalankan setup berurutan:
+Saat dijalankan, `install.sh` meminta domain sekali. Isi domain valid untuk mencoba Let's Encrypt; tekan Enter untuk memakai self-signed certificate. Setelah input domain, script otomatis mengunduh `lib/`, `src/`, dan `bin/badvpn-udpgw` dari commit yang dipin, lalu menjalankan setup berurutan:
 
 ```text
 01 Dropbear SSH tambahan (:143)

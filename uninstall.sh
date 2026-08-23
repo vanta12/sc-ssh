@@ -46,7 +46,8 @@ for svc in ws-tunnel udpgw haproxy autoscript-dropbear fail2ban; do
     fi
 done
 # Dropbear package service is separate from AutoScript custom unit.
-if grep -Fxq dropbear "$PACKAGE_MANIFEST" 2>/dev/null; then
+if grep -Fxq dropbear "$PACKAGE_MANIFEST" 2>/dev/null || \
+   grep -Fq 'dropbear|' "$SERVICE_MANIFEST" 2>/dev/null; then
     systemctl disable --now dropbear 2>/dev/null || true
 fi
 
@@ -82,6 +83,9 @@ else
     iptables -X AUTOSCRIPT_RATE_SSH 2>/dev/null || true
     iptables -F AUTOSCRIPT_INVALID 2>/dev/null || true
     iptables -X AUTOSCRIPT_INVALID 2>/dev/null || true
+    iptables -D INPUT -j AUTOSCRIPT_SERVICES 2>/dev/null || true
+    iptables -F AUTOSCRIPT_SERVICES 2>/dev/null || true
+    iptables -X AUTOSCRIPT_SERVICES 2>/dev/null || true
 fi
 
 # ── Remove only packages recorded as AutoScript-owned ───────

@@ -117,9 +117,12 @@ users_delete() {
     # Delete user
     userdel -f "$username" 2>/dev/null || true
 
-    # Remove from DB
+    # Remove from DB and AutoScript ownership manifest.
     if [ -f "$USER_DB" ]; then
         sed -i "/^${username}|/d" "$USER_DB" 2>/dev/null || true
+    fi
+    if [ -f "${AUTOSCRIPT_USER_MANIFEST:-}" ]; then
+        sed -i "\|^${username}$|d" "$AUTOSCRIPT_USER_MANIFEST" 2>/dev/null || true
     fi
 
     log "User deleted: $username"

@@ -223,6 +223,18 @@ wait_for_port() {
     return 1
 }
 
+restore_service_states() {
+    [ -f "$AUTOSCRIPT_SERVICE_MANIFEST" ] || return 0
+    while IFS='|' read -r svc enabled active; do
+        [ -n "$svc" ] || continue
+        case "$enabled" in
+            enabled|enabled-runtime|static) systemctl enable "$svc" 2>/dev/null || true ;;
+            *) systemctl disable "$svc" 2>/dev/null || true ;;
+        esac
+        [ "$active" = active ] && systemctl start "$svc" 2>/dev/null || true
+    done < "$AUTOSCRIPT_SERVICE_MANIFEST"
+}
+
 rollback_install() {
     warn "Rollback instalasi dimulai..."
     local firewall_backup="${AUTOSCRIPT_ROOT}/data/iptables.before.v4"
@@ -272,11 +284,17 @@ rollback_install() {
             [ -n "$created" ] && rm -f -- "$created"
         done < "$AUTOSCRIPT_CREATED_MANIFEST"
     fi
+    if [ -f "$AUTOSCRIPT_USER_MANIFEST" ]; then
+        while IFS= read -r username; do
+            [ -n "$username" ] && userdel -f "$username" 2>/dev/null || true
+        done < "$AUTOSCRIPT_USER_MANIFEST"
+    fi
     if [ -f "$AUTOSCRIPT_PACKAGE_MANIFEST" ]; then
         while IFS= read -r pkg; do
             [ -n "$pkg" ] && apt-get remove --purge -y -qq "$pkg" >/dev/null 2>&1 || true
         done < "$AUTOSCRIPT_PACKAGE_MANIFEST"
     fi
+    restore_service_states
 }
 
 # ── Get public IP ───────────────────────────────────────────

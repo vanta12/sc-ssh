@@ -126,8 +126,15 @@ CRONEOF
         local self_crt="${ssl_dir}/vpn.self.crt"
         local self_key="${ssl_dir}/vpn.self.key"
 
+        local self_ext
+        if [ -n "$domain" ]; then
+            self_ext="subjectAltName=DNS:${domain}"
+        else
+            self_ext="subjectAltName=DNS:$(hostname)"
+        fi
         openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
-            -subj "/C=ID/ST=Jakarta/L=Jakarta/O=AutoScript/CN=VPS-$(hostname)" \
+            -subj "/C=ID/ST=Jakarta/L=Jakarta/O=AutoScript/CN=${domain:-VPS-$(hostname)}" \
+            -addext "$self_ext" \
             -keyout "$self_key" \
             -out "$self_crt" 2>/dev/null
 

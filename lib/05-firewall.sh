@@ -30,6 +30,7 @@ firewall_setup() {
     log "Configuring iptables rate limiting..."
     local rate_chain="AUTOSCRIPT_RATE_SSH"
     local invalid_chain="AUTOSCRIPT_INVALID"
+    local services_chain="AUTOSCRIPT_SERVICES"
 
     iptables -N "$rate_chain" 2>/dev/null || iptables -F "$rate_chain" 2>/dev/null || true
     iptables -A "$rate_chain" -m recent --set --name AUTOSCRIPT_SSH --rsource 2>/dev/null || true
@@ -45,6 +46,13 @@ firewall_setup() {
     iptables -A "$invalid_chain" -j DROP 2>/dev/null || true
     iptables -C INPUT -m conntrack --ctstate INVALID -j "$invalid_chain" 2>/dev/null || \
         iptables -I INPUT -m conntrack --ctstate INVALID -j "$invalid_chain" 2>/dev/null || true
+
+    iptables -N "$services_chain" 2>/dev/null || iptables -F "$services_chain" 2>/dev/null || true
+    iptables -A "$services_chain" -p tcp -m multiport --dports 80,443,"$dropbear_port" -j ACCEPT 2>/dev/null || true
+    iptables -A "$services_chain" -p udp --dport "$badvpn_start" -j ACCEPT 2>/dev/null || true
+    iptables -A "$services_chain" -j RETURN 2>/dev/null || true
+    iptables -C INPUT -j "$services_chain" 2>/dev/null || \
+        iptables -I INPUT -j "$services_chain" 2>/dev/null || true
 
     if command -v iptables-save >/dev/null 2>&1; then
         mkdir -p /etc/iptables

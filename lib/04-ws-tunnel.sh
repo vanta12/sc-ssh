@@ -24,6 +24,7 @@ ws_tunnel_install() {
     fi
     mkdir -p "$deploy_dir" "${AUTOSCRIPT_ROOT}/logs"
     chown "$ws_user:$ws_user" "${AUTOSCRIPT_ROOT}/logs"
+    find "${AUTOSCRIPT_ROOT}/logs" -maxdepth 1 -type f -name 'ws-tunnel.log' -exec chown "$ws_user:$ws_user" {} + 2>/dev/null || true
     chmod 750 "${AUTOSCRIPT_ROOT}/logs"
 
     # Use source downloaded by install.sh bootstrap.
