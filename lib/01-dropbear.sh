@@ -50,15 +50,14 @@ EOF
         dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null || true
     fi
 
-    # Dropbear replaces OpenSSH as primary SSH service.
-    # Stop old SSH first so Dropbear can bind port 143, then start it immediately.
-    systemctl disable --now ssh sshd 2>/dev/null || true
+    # Start Dropbear before removing OpenSSH; ports differ (143 vs 22).
     enable_service dropbear
-    apt-get remove --purge -y -qq openssh-server openssh-sftp-server 2>/dev/null || true
 
-    if port_in_use "$port"; then
-        log "Dropbear running on port $port ✓"
-    else
-        warn "Dropbear mungkin tidak listen di port $port — cek manual"
+    if ! port_in_use "$port"; then
+        die "Dropbear gagal listen di port $port; SSH lama tetap dipertahankan"
     fi
+
+    systemctl disable --now ssh sshd 2>/dev/null || true
+    apt-get remove --purge -y -qq openssh-server openssh-sftp-server 2>/dev/null || true
+    log "Dropbear running on port $port ✓"
 }

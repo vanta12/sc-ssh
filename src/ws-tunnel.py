@@ -39,7 +39,7 @@ RATE_LIMIT = int(os.environ.get("WS_RATE_LIMIT", "30"))
 RATE_WINDOW = int(os.environ.get("WS_RATE_WINDOW", "60"))
 TIMEOUT = int(os.environ.get("WS_TIMEOUT", "3600"))
 BUFFER_SIZE = int(os.environ.get("WS_BUFFER", "8192"))
-LOG_FILE = os.environ.get("WS_LOG", "/var/log/ws-tunnel.log")
+LOG_FILE = os.environ.get("WS_LOG", "/opt/autoscript/logs/ws-tunnel.log")
 
 # ── Globals ───────────────────────────────────────────────
 clients = {}
@@ -448,7 +448,7 @@ def main():
     server.listen(MAX_CLIENTS)
 
     def graceful_shutdown(signum, frame):
-        nonlocal running
+        global running
         log("info", f"Shutting down (signal {signum})...")
         running = False
         try:

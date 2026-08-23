@@ -7,8 +7,12 @@ USER_DB="${AUTOSCRIPT_ROOT:-/opt/autoscript}/data/users.db"
 USER_LOG="${AUTOSCRIPT_ROOT:-/opt/autoscript}/logs/vpn-users.log"
 
 users_init() {
-    mkdir -p "$(dirname "$USER_DB")"
+    local data_dir
+    data_dir="$(dirname "$USER_DB")"
+    mkdir -p "$data_dir"
+    chmod 700 "$data_dir"
     touch "$USER_DB"
+    chmod 600 "$USER_DB"
 }
 
 users_create() {

@@ -218,6 +218,7 @@ Environment="WS_HOST=127.0.0.1"
 Environment="WS_PORT=${listen_port}"
 Environment="WS_BACKEND_HOST=${backend_host}"
 Environment="WS_BACKEND_PORT=${backend_port}"
+Environment="WS_LOG=${AUTOSCRIPT_ROOT}/logs/ws-tunnel.log"
 ExecStart=/usr/bin/python3 ${AUTOSCRIPT_ROOT}/ws-tunnel/ws-tunnel.py
 Restart=always
 RestartSec=3

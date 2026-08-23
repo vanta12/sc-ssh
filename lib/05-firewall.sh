@@ -29,10 +29,12 @@ firewall_setup() {
     iptables -A RATE_SSH -j ACCEPT 2>/dev/null || true
 
     # Apply rate limiting to primary Dropbear SSH port.
-    iptables -I INPUT -p tcp --dport "$dropbear_port" -j RATE_SSH 2>/dev/null || true
+    iptables -C INPUT -p tcp --dport "$dropbear_port" -j RATE_SSH 2>/dev/null || \
+        iptables -I INPUT -p tcp --dport "$dropbear_port" -j RATE_SSH 2>/dev/null || true
 
     # Drop invalid packets
-    iptables -A INPUT -m state --state INVALID -j DROP 2>/dev/null || true
+    iptables -C INPUT -m state --state INVALID -j DROP 2>/dev/null || \
+        iptables -A INPUT -m state --state INVALID -j DROP 2>/dev/null || true
 
     # Save iptables rules
     if command -v iptables-save &>/dev/null; then
@@ -65,18 +67,11 @@ backend   = auto
 
 enabled   = true
 port      = ${dropbear_port}
-filter    = sshd
+filter    = dropbear
 logpath   = /var/log/auth.log
 maxretry  = 4
 bantime   = 3600
 
-[haproxy-http]
-enabled   = true
-port      = 80,443
-filter    = haproxy-http-auth
-logpath   = /var/log/haproxy.log
-maxretry  = 5
-bantime   = 3600
 FAIL2BAN
 
     # Configure HAProxy logging for Fail2Ban

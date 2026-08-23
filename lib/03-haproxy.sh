@@ -279,6 +279,9 @@ HAPROXY
         -e "s|{{WS_PORT}}|${ws_port}|g" \
         "$template" > "$ha_conf"
 
+    if command -v haproxy >/dev/null 2>&1; then
+        haproxy -c -f "$ha_conf" >/dev/null || die "Konfigurasi HAProxy tidak valid"
+    fi
     enable_service haproxy
 
     log "HAProxy running — port ${haproxy_port_80} (plain) + ${haproxy_port_443} (TLS)"
