@@ -493,11 +493,9 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               ┌─────────────────────────────────┐
               │ STEP 7: Firewall + Fail2Ban      │
               │                                  │
-              │ UFW:                             │
-              │  • allow 22, 143, 80, 443        │
-              │  • allow 7300:7399/udp           │
-              │  • allow 8880/tcp                │
-              │  • enable ufw                    │
+              │ Provider firewall:                │
+              │  • port diatur via portal VPS     │
+              │  • UFW tidak dipasang             │
               │                                  │
               │ Fail2Ban:                        │
               │  • jail sshd (maxretry 4)        │
@@ -613,6 +611,7 @@ bash install.sh --component firewall
 - HAProxy: maxconn 500 per backend
 - Fail2Ban: 3 retry → 600s ban
 - iptables rate limit: 10 conn/sec per IP
+- Inbound port policy: portal web provider VPS; UFW tidak dipasang
 - WS tunnel rate limit: 30 req/menit per IP
 - TLS cert auto-regenerate setiap 90 hari
 - Log rotation (logrotate)

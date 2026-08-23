@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  firewall.sh — UFW + iptables + Fail2Ban
+#  06-firewall.sh — iptables + Fail2Ban
 # ============================================================
 
 firewall_setup() {
@@ -11,44 +11,12 @@ firewall_setup() {
     local badvpn_end="${5:-7399}"
     local haproxy_ports=("${@:6}")
 
-    section "Firewall + Fail2Ban Setup"
+    section "iptables + Fail2Ban Setup"
 
-    # ── Install packages ───────────────────────────────────
-    install_pkg ufw
+    # Provider VPS handles inbound port policy through its web portal.
     install_pkg fail2ban
     install_pkg iptables
-
-    # ── UFW ────────────────────────────────────────────────
-    log "Configuring UFW..."
-
-    ufw --force reset 2>/dev/null || true
-
-    # Default policies
-    ufw default deny incoming 2>/dev/null || true
-    ufw default allow outgoing 2>/dev/null || true
-
-    # SSH
-    ufw allow "$ssh_port/tcp" comment "OpenSSH" 2>/dev/null || true
-
-    # Dropbear
-    [ -n "$dropbear_port" ] && ufw allow "$dropbear_port/tcp" comment "Dropbear" 2>/dev/null || true
-
-    # HAProxy ports
-    ufw allow 80/tcp comment "HAProxy HTTP" 2>/dev/null || true
-    ufw allow 443/tcp comment "HAProxy HTTPS" 2>/dev/null || true
-
-    # WS tunnel (internal, tapi allow untuk direct access)
-    ufw allow "$ws_port/tcp" comment "WS Tunnel" 2>/dev/null || true
-
-    # BadVPN UDP range
-    ufw allow "${badvpn_start}:${badvpn_end}/udp" comment "BadVPN UDPGW" 2>/dev/null || true
-
-    # Admin
-    ufw allow 9090/tcp comment "HAProxy Stats" 2>/dev/null || true
-
-    # Enable
-    ufw --force enable 2>/dev/null || true
-    log "UFW enabled"
+    log "UFW tidak digunakan; port dikelola lewat portal provider VPS"
 
     # ── iptables Rate Limiting ─────────────────────────────
     log "Configuring iptables rate limiting..."

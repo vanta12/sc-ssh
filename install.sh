@@ -422,9 +422,6 @@ while true; do
                 log "Restored original sshd_config"
             fi
 
-            # Reset firewall
-            ufw --force reset 2>/dev/null || true
-
             systemctl daemon-reload 2>/dev/null || true
             log "Uninstall selesai"
             read -rp "  [Enter] kembali..." _

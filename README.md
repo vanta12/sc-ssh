@@ -13,7 +13,7 @@ mendukung multi-protocol sharing di port 80 & 443.
 | HAProxy | 80, 443 | Port sharing + SSL termination |
 | Python WS Tunnel | 8880 | Custom raw WebSocket (no dependencies) |
 | Fail2Ban | — | Brute-force protection |
-| UFW | — | Firewall |
+| iptables + Fail2Ban | — | Rate limit dan brute-force protection |
 
 ## Mode Koneksi (Port 80 & 443)
 
@@ -116,7 +116,7 @@ sudo bash install.sh  # pilih [3] User Management
 
 - Fail2Ban active (4 retry → ban 1 jam)
 - iptables rate limit (10 conn/menit per IP)
-- UFW firewall
+- Port/firewall network diatur lewat portal web provider VPS
 - SSH hardening (no empty password, max auth tries, banner)
 - TLS 1.2+ only (HAProxy)
 - RSA 4096-bit certs
