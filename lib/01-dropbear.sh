@@ -10,6 +10,11 @@ dropbear_install() {
 
     install_pkg dropbear
 
+    # Package-native Dropbear service can conflict with OpenSSH or hang via
+    # its SysV wrapper. Stop only Dropbear; never touch OpenSSH.
+    timeout 30 systemctl disable --now dropbear 2>/dev/null || true
+    timeout 30 service dropbear stop 2>/dev/null || true
+
     local conf="/etc/default/dropbear"
     backup_file "$conf"
 
@@ -36,27 +41,43 @@ DROPBEAR
 EOF
 
     # Generate keys
-    if [ ! -f /etc/dropbear/dropbear_rsa_host_key ]; then
+    mkdir -p /etc/dropbear
+    if [ ! -s /etc/dropbear/dropbear_rsa_host_key ]; then
         log "Generating Dropbear RSA key..."
-        dropbearkey -t rsa -s 2048 -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || \
-            dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || true
+        timeout 60 dropbearkey -t rsa -s 2048 -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || \
+            timeout 60 dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null || \
+            die "Gagal membuat Dropbear RSA host key"
     fi
-    if [ ! -f /etc/dropbear/dropbear_ecdsa_host_key ]; then
+    if [ ! -s /etc/dropbear/dropbear_ecdsa_host_key ]; then
         log "Generating Dropbear ECDSA key..."
-        dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key 2>/dev/null || true
+        timeout 60 dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key 2>/dev/null || \
+            warn "Gagal membuat ECDSA key; lanjut dengan key lain"
     fi
-    if [ ! -f /etc/dropbear/dropbear_ed25519_host_key ]; then
+    if [ ! -s /etc/dropbear/dropbear_ed25519_host_key ]; then
         log "Generating Dropbear Ed25519 key..."
-        dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null || true
+        timeout 60 dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null || \
+            warn "Gagal membuat Ed25519 key; lanjut dengan key lain"
     fi
 
-    # Keep existing OpenSSH on port 22 as admin fallback.
-    # Dropbear runs alongside it on port 143.
-    # Dropbear runs alongside OpenSSH on port 143.
-    # Use init script directly — avoids systemd override conflicts.
+    # Keep existing OpenSSH on port 22 as admin fallback. Dropbear runs on 143.
+    # A dedicated simple unit avoids the package's blocking SysV wrapper.
+    cat > /etc/systemd/system/autoscript-dropbear.service <<SYSTEMD
+[Unit]
+Description=AutoScript Dropbear SSH
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dropbear -F -E -K 300 -I 60 -m -b /etc/dropbear.banner -p ${port}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD
+
     systemctl daemon-reload 2>/dev/null || true
-    systemctl enable dropbear 2>/dev/null || true
-    service dropbear start 2>/dev/null
+    enable_service autoscript-dropbear
     sleep 2
 
     if ! port_in_use "$port"; then

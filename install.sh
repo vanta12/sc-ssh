@@ -10,7 +10,12 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 export APT_LISTCHANGES_FRONTEND=none
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0##*/}}" 2>/dev/null || echo /tmp)" 2>/dev/null && pwd || echo /tmp)"
+# BASH_SOURCE is unset when this file is interpreted from stdin by curl | bash.
+SCRIPT_SOURCE="${BASH_SOURCE[0]-}"
+if [ -z "$SCRIPT_SOURCE" ]; then
+    SCRIPT_SOURCE="${0:-install.sh}"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" 2>/dev/null && pwd || printf '%s' /tmp)"
 AUTOSCRIPT_ROOT="${AUTOSCRIPT_ROOT:-/opt/autoscript}"
 REPO_RAW_BASE="${AUTOSCRIPT_REPO_RAW_BASE:-https://raw.githubusercontent.com/vanta12/sc-ssh/main}"
 RUNTIME_DIR="${AUTOSCRIPT_RUNTIME_DIR:-${AUTOSCRIPT_ROOT}/runtime}"
@@ -45,6 +50,7 @@ bootstrap_download() {
 }
 
 bootstrap_runtime() {
+    printf '[INFO] Downloading installer runtime to %s\n' "$RUNTIME_DIR"
     mkdir -p "$LIB_DIR" "$SRC_DIR" "$BIN_DIR"
 
     bootstrap_download "lib/common.sh" "${LIB_DIR}/common.sh"
@@ -70,6 +76,8 @@ bootstrap_runtime() {
     actual_sha256="$(sha256sum "${BIN_DIR}/badvpn-udpgw" | awk '{print $1}')"
     [ "$actual_sha256" = "$BADVPN_SHA256" ] ||
         bootstrap_die "Checksum badvpn-udpgw tidak cocok"
+
+    printf '[INFO] Runtime download complete\n'
 }
 
 if [ "${EUID}" -ne 0 ]; then
@@ -80,6 +88,7 @@ bootstrap_runtime
 export AUTOSCRIPT_BADVPN_BINARY="${BIN_DIR}/badvpn-udpgw"
 export AUTOSCRIPT_WS_SOURCE="${SRC_DIR}/ws-tunnel.py"
 export AUTOSCRIPT_HAPROXY_TEMPLATE="${SRC_DIR}/haproxy.cfg.tpl"
+export AUTOSCRIPT_USER_HELPER="${LIB_DIR}/06-users.sh"
 
 cleanup_runtime() {
     local exit_code=$?
@@ -121,12 +130,18 @@ source "${LIB_DIR}/04-ws-tunnel.sh"
 source "${LIB_DIR}/05-firewall.sh"
 source "${LIB_DIR}/06-users.sh"
 
+log "[01/06] Initializing user database"
 users_init
+log "[02/06] Updating package indexes"
 apt-get update -qq
 
+log "[03/06] Installing Dropbear"
 dropbear_install "$DROPBEAR_PORT"
+log "[04/06] Installing BadVPN"
 badvpn_install "$BADVPN_START"
+log "[05/06] Installing HAProxy"
 haproxy_install "$DOMAIN" "$WS_PORT" "$DROPBEAR_PORT" "$HAPROXY_PORT_80" "$HAPROXY_PORT_443"
+log "[06/06] Installing WebSocket tunnel and firewall"
 ws_tunnel_install "$WS_PORT" "127.0.0.1" "$DROPBEAR_PORT"
 firewall_setup "$DROPBEAR_PORT" "$WS_PORT" "$BADVPN_START" "$BADVPN_START"
 

@@ -59,18 +59,23 @@ users_create() {
         warn "Gagal set password untuk $username"
     }
 
-    # Record in DB
-    echo "${username}|${password}|$(date '+%Y-%m-%d %H:%M:%S')|${expire_date}|${duration_hours}" >> "$USER_DB"
+    # Store only a password hash. Cleartext password is returned once above.
+    if ! command -v openssl >/dev/null 2>&1; then
+        install_pkg openssl
+    fi
+    local password_hash
+    password_hash=$(openssl passwd -6 "$password") || die "Gagal membuat password hash"
+    echo "${username}|${password_hash}|$(date '+%Y-%m-%d %H:%M:%S')|${expire_date}|${duration_hours}" >> "$USER_DB"
 
     # Schedule deletion via cron (at)
     if command -v at &>/dev/null; then
-        echo "bash $(readlink -f "$0") user-delete ${username}" | at now + "${duration_hours}" hours 2>/dev/null
+        echo "bash ${AUTOSCRIPT_USER_HELPER:-/opt/autoscript/runtime/lib/06-users.sh} user-delete ${username}" | at now + "${duration_hours}" hours 2>/dev/null
     fi
 
     # Also setup cron checker
     cat > /etc/cron.d/vpn-expire <<CRON
 # Check expired users every 10 minutes
-*/10 * * * * root bash $(readlink -f "$0") user-purge-expired 2>/dev/null
+*/10 * * * * root bash ${AUTOSCRIPT_USER_HELPER:-/opt/autoscript/runtime/lib/06-users.sh} user-purge-expired 2>/dev/null
 CRON
 
     log "User created: $username (expires in ${duration_hours}h)"
@@ -138,7 +143,7 @@ users_list() {
             local status="${RED}deleted${NC}"
         fi
         printf "│ ${CYAN}%-16s${NC} ${YELLOW}%-14s${NC} %-12s %-12s %s │\n" \
-            "$username" "$password" "${created:0:10}" "${expire:0:10}" "$status"
+            "$username" "[hidden]" "${created:0:10}" "${expire:0:10}" "$status"
     done < "$USER_DB"
 
     echo -e "${BOLD}${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
