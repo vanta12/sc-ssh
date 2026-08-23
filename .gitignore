@@ -1,0 +1,25 @@
+# Logs
+*.log
+/var/log/
+
+# Temp
+/tmp/
+*.swp
+*.swo
+*~
+
+# Backup configs
+*.bak-*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
