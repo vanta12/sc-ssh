@@ -7,7 +7,7 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 | Komponen | Port Internal | Deskripsi |
 |----------|--------------|-----------|
-| Dropbear | 22 | SSH server utama + hardening |
+| Dropbear | 143 | SSH server utama + hardening |
 | BadVPN/UDPGW | 7300/UDP | Precompiled UDP tunnel binary |
 | HAProxy | 80, 443 | Port sharing + SSL termination |
 | Python WS Tunnel | 8880 | Custom raw WebSocket (no dependencies) |

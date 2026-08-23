@@ -6,7 +6,7 @@
 haproxy_install() {
     local domain="${1:-}"
     local ws_port="${2:-8880}"
-    local dropbear_port="${3:-22}"
+    local dropbear_port="${3:-143}"
     local haproxy_port_80="${4:-80}"
     local haproxy_port_443="${5:-443}"
 

@@ -4,7 +4,7 @@
 # ============================================================
 
 dropbear_install() {
-    local port="${1:-22}"
+    local port="${1:-143}"
 
     section "Installing Dropbear as primary SSH"
 
@@ -51,7 +51,7 @@ EOF
     fi
 
     # Dropbear replaces OpenSSH as primary SSH service.
-    # Stop old SSH first so Dropbear can bind port 22, then start it immediately.
+    # Stop old SSH first so Dropbear can bind port 143, then start it immediately.
     systemctl disable --now ssh sshd 2>/dev/null || true
     enable_service dropbear
     apt-get remove --purge -y -qq openssh-server openssh-sftp-server 2>/dev/null || true

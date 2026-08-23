@@ -4,7 +4,7 @@
 # ============================================================
 
 firewall_setup() {
-    local dropbear_port="${1:-22}"
+    local dropbear_port="${1:-143}"
     local ws_port="${2:-8880}"
     local badvpn_start="${3:-7300}"
     local badvpn_end="${4:-7300}"

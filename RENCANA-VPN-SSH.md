@@ -13,7 +13,7 @@ dengan script Python WebSocket super fleksibel (non-standar).
                           │         HAProxy                 │
 Client ──────────────────▶│                                 │
 (HTTP Injector /          │  PORT 80 (plain)                │
- Android / PC)            │  ├─ detect "SSH-" → SSH :22     │
+ Android / PC)            │  ├─ detect "SSH-" → SSH :143    │
                           │  ├─ detect "GET.*Upgrade" → WS  │
                           │  │   (Python raw WS :8880)      │
                           │  └─ else → HTTP (drop/reject)   │
@@ -21,7 +21,7 @@ Client ──────────────────▶│             
                           │  PORT 443 (TLS)                  │
                           │  ├─ TLS terminate               │
                           │  │   (Let's Encrypt / self-signed)│
-                          │  ├─ detect "SSH-" → SSH :22     │
+                          │  ├─ detect "SSH-" → SSH :143    │
                           │  │   → SSH over SSL/TLS                    │
                           │  ├─ detect "GET.*Upgrade" → WS  │
                           │  │   → WSS (WS over TLS)                    │
@@ -32,7 +32,7 @@ Client ──────────────────▶│             
               ▼                      ▼                      ▼
         ┌──────────┐         ┌──────────────┐       ┌──────────┐
         │ Dropbear │         │ Custom Python │
-        │ :22      │         │ Raw WS :8880  │
+        │ :143     │         │ Raw WS :8880  │
         └──────────┘         └──────┬───────┘       └──────────┘
                                     │
                             (connect lokal)
@@ -69,8 +69,8 @@ frontend https-in
 ```
 
 Backend mapping:
-- `ssh_direct` → 127.0.0.1:22 (Dropbear)
-- `ssh_local`  → 127.0.0.1:22 (Dropbear via TLS termination)
+- `ssh_direct` → 127.0.0.1:143 (Dropbear)
+- `ssh_local`  → 127.0.0.1:143 (Dropbear via TLS termination)
 - `ws_tunnel`  → 127.0.0.1:8880 (Python raw WS)
 - `ws_tunnel_ssl` → 127.0.0.1:8880 (Python raw WS via TLS)
 
@@ -323,7 +323,7 @@ HTTP Injector config:
   - Port: 80
   - Payload: (kosong, direct SSH)
 ```
-HAProxy sniff "SSH-" → route ke Dropbear :22
+HAProxy sniff "SSH-" → route ke Dropbear :143
 
 ### Skenario 2: SSH over SSL Port 443
 ```
@@ -333,7 +333,7 @@ HTTP Injector config:
   - SSL/TLS: ✅ enable
   - Payload: (kosong, SSH over TLS)
 ```
-HAProxy: Port 443 → TLS terminate → sniff "SSH-" → route ke :22
+HAProxy: Port 443 → TLS terminate → sniff "SSH-" → route ke :143
 
 ### Skenario 3: SSH over WebSocket Port 80
 ```
@@ -342,7 +342,7 @@ HTTP Injector config:
   - Port: 80
   - Payload: GET / HTTP/1.1[crlf]Host: vps-ip[crlf]Upgrade: websocket[crlf][crlf]
 ```
-HAProxy sniff "GET" → deteksi Upgrade → route ke Python WS :8880 → pipe ke SSH :22
+HAProxy sniff "GET" → deteksi Upgrade → route ke Python WS :8880 → pipe ke Dropbear :143
 
 ### Skenario 4: SSH over WSS Port 443
 ```
@@ -402,8 +402,8 @@ HAProxy: Port 443 → TLS terminate → deteksi HTTP GET + Upgrade → route ke 
               ┌─────────────────────────────────┐
               │ STEP 3: Input Konfigurasi        │
               │                                  │
-              │ → SSH Port       [default: 22]  │
-              │ → Dropbear Port  [default: 22]  │
+              │ → Dropbear Port  [default: 143] │
+              │ → Dropbear Port  [default: 143] │
               │ → BadVPN Start   [default: 7300]│
               │ → HAProxy Ports  [80, 443]      │
               │ → WS Tunnel Port [default: 8880]│

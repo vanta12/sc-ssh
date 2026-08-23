@@ -86,7 +86,7 @@ cleanup_runtime() {
 source "${LIB_DIR}/common.sh"
 trap cleanup_runtime EXIT
 
-DROPBEAR_PORT=22
+DROPBEAR_PORT=143
 BADVPN_START=7300
 WS_PORT=8880
 HAPROXY_PORT_80=80
@@ -95,7 +95,7 @@ DOMAIN=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --ssh-port) DROPBEAR_PORT="$2"; shift ;;
+        --dropbear-port) DROPBEAR_PORT="$2"; shift ;;
         --badvpn-start) BADVPN_START="$2"; shift ;;
         --ws-port) WS_PORT="$2"; shift ;;
         --haproxy-port-80) HAPROXY_PORT_80="$2"; shift ;;
@@ -109,7 +109,7 @@ while [[ $# -gt 0 ]]; do
             echo "Semua komponen selalu dipasang berurutan: 01 sampai 06."
             echo ""
             echo "Options:"
-            echo "  --ssh-port N        Dropbear SSH port (default 22)"
+            echo "  --dropbear-port N   Dropbear SSH port (default 143)"
             echo "  --badvpn-start N    BadVPN UDP port (default 7300)"
             echo "  --ws-port N         WS tunnel port (default 8880)"
             echo "  --domain DOMAIN     Domain untuk Let's Encrypt"
