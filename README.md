@@ -28,7 +28,7 @@ mendukung multi-protocol sharing di port 80 & 443.
 
 ### Install interaktif
 ```bash
-cd ~/proyek/autoscript/vpn-ssh
+cd ~/proyek/autoscript
 sudo bash install.sh
 ```
 
@@ -74,17 +74,17 @@ sudo bash install.sh --component firewall
 ## Struktur Folder
 
 ```
-vpn-ssh/
+autoscript/
 ├── install.sh           ← Main installer
 ├── lib/
 │   ├── common.sh        ← Shared functions
-│   ├── openssh.sh       ← OpenSSH module
-│   ├── dropbear.sh      ← Dropbear module
-│   ├── badvpn.sh        ← BadVPN compile + setup
-│   ├── haproxy.sh       ← HAProxy + SSL module
-│   ├── ws-tunnel.sh     ← Python WS deployer
-│   ├── firewall.sh      ← UFW + iptables + Fail2Ban
-│   └── users.sh         ← Multi-user trial management
+│   ├── 01-openssh.sh    ← Step 1: OpenSSH
+│   ├── 02-dropbear.sh   ← Step 2: Dropbear
+│   ├── 03-badvpn.sh     ← Step 3: BadVPN/UDPGW
+│   ├── 04-haproxy.sh    ← Step 4: HAProxy + SSL
+│   ├── 05-ws-tunnel.sh  ← Step 5: Python WS tunnel
+│   ├── 06-firewall.sh   ← Step 6: Fail2Ban/firewall
+│   └── 07-users.sh      ← Step 7: User management
 ├── src/
 │   └── ws-tunnel.py     ← Raw WebSocket server (pure stdlib)
 ├── config/              ← Config templates

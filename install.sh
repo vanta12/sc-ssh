@@ -83,13 +83,13 @@ detect_os
 # ── Single Component Mode ─────────────────────────────────
 if [ -n "$INSTALL_COMPONENT" ]; then
     case "$INSTALL_COMPONENT" in
-        ssh)       source "${LIB_DIR}/openssh.sh";  openssh_install "$SSH_PORT" "$ALLOW_ROOT" "$ALLOW_PASSWORD" ;;
-        dropbear)  source "${LIB_DIR}/dropbear.sh"; dropbear_install "$DROPBEAR_PORT" ;;
-        badvpn)    source "${LIB_DIR}/badvpn.sh";   badvpn_install "$BADVPN_START" ;;
-        haproxy)   source "${LIB_DIR}/haproxy.sh";  source "${LIB_DIR}/openssh.sh"
+        ssh)       source "${LIB_DIR}/01-openssh.sh";  openssh_install "$SSH_PORT" "$ALLOW_ROOT" "$ALLOW_PASSWORD" ;;
+        dropbear)  source "${LIB_DIR}/02-dropbear.sh"; dropbear_install "$DROPBEAR_PORT" ;;
+        badvpn)    source "${LIB_DIR}/03-badvpn.sh";   badvpn_install "$BADVPN_START" ;;
+        haproxy)   source "${LIB_DIR}/04-haproxy.sh";  source "${LIB_DIR}/01-openssh.sh"
                    haproxy_install "$DOMAIN" "$WS_PORT" "$SSH_PORT" "$DROPBEAR_PORT" "$HAPROXY_PORT_80" "$HAPROXY_PORT_443" ;;
-        ws-tunnel) source "${LIB_DIR}/ws-tunnel.sh"; ws_tunnel_install "$WS_PORT" "127.0.0.1" "$SSH_PORT" ;;
-        firewall)  source "${LIB_DIR}/firewall.sh"; firewall_setup "$SSH_PORT" "$DROPBEAR_PORT" "$WS_PORT" "$BADVPN_START" $((BADVPN_START+99)) ;;
+        ws-tunnel) source "${LIB_DIR}/05-ws-tunnel.sh"; ws_tunnel_install "$WS_PORT" "127.0.0.1" "$SSH_PORT" ;;
+        firewall)  source "${LIB_DIR}/06-firewall.sh"; firewall_setup "$SSH_PORT" "$DROPBEAR_PORT" "$WS_PORT" "$BADVPN_START" $((BADVPN_START+99)) ;;
         *)
             err "Component unknown: $INSTALL_COMPONENT"
             echo "Available: ssh, dropbear, badvpn, haproxy, ws-tunnel, firewall"
@@ -103,13 +103,13 @@ fi
 if $FULL_AUTO; then
     section "FULL AUTO INSTALL"
 
-    source "${LIB_DIR}/openssh.sh"
-    source "${LIB_DIR}/dropbear.sh"
-    source "${LIB_DIR}/badvpn.sh"
-    source "${LIB_DIR}/haproxy.sh"
-    source "${LIB_DIR}/ws-tunnel.sh"
-    source "${LIB_DIR}/firewall.sh"
-    source "${LIB_DIR}/users.sh"
+    source "${LIB_DIR}/01-openssh.sh"
+    source "${LIB_DIR}/02-dropbear.sh"
+    source "${LIB_DIR}/03-badvpn.sh"
+    source "${LIB_DIR}/04-haproxy.sh"
+    source "${LIB_DIR}/05-ws-tunnel.sh"
+    source "${LIB_DIR}/06-firewall.sh"
+    source "${LIB_DIR}/07-users.sh"
 
     apt-get update -qq
     openssh_install "$SSH_PORT" "$ALLOW_ROOT" "$ALLOW_PASSWORD"
@@ -179,14 +179,14 @@ while true; do
 
             confirm "Lanjutkan install?" || { warn "Dibatalkan."; continue; }
 
-            # Source all modules
-            source "${LIB_DIR}/openssh.sh"
-            source "${LIB_DIR}/dropbear.sh"
-            source "${LIB_DIR}/badvpn.sh"
-            source "${LIB_DIR}/haproxy.sh"
-            source "${LIB_DIR}/ws-tunnel.sh"
-            source "${LIB_DIR}/firewall.sh"
-            source "${LIB_DIR}/users.sh"
+            # Source all modules in numbered installation order
+            source "${LIB_DIR}/01-openssh.sh"
+            source "${LIB_DIR}/02-dropbear.sh"
+            source "${LIB_DIR}/03-badvpn.sh"
+            source "${LIB_DIR}/04-haproxy.sh"
+            source "${LIB_DIR}/05-ws-tunnel.sh"
+            source "${LIB_DIR}/06-firewall.sh"
+            source "${LIB_DIR}/07-users.sh"
             users_init
 
             # Update packages
@@ -208,12 +208,19 @@ while true; do
             echo ""
             read -rp "  Buat user trial? [Y/n]: " create_trial
             if [[ ! "$create_trial" =~ ^[Nn] ]]; then
-                source "${LIB_DIR}/users.sh"
+                source "${LIB_DIR}/07-users.sh"
                 users_init
                 echo "  Durasi: [1]=2jam [2]=6jam [3]=12jam [4]=1hari [5]=3hari [6]=7hari [7]=Custom"
                 read -rp "  > " dur_choice
                 case "$dur_choice" in
-                    1) H=2; 2) H=6; 3) H=12; 4) H=24; 5) H=72; 6) H=168; 7) read -rp "  Jam: " H; *) H=2 ;;
+                    1) H=2 ;;
+                    2) H=6 ;;
+                    3) H=12 ;;
+                    4) H=24 ;;
+                    5) H=72 ;;
+                    6) H=168 ;;
+                    7) read -rp "  Jam: " H ;;
+                    *) H=2 ;;
                 esac
                 trial_pass=$(users_create "$H")
                 TRIAL_USER=$(tail -1 "$USER_DB" 2>/dev/null | cut -d'|' -f1)
@@ -241,17 +248,17 @@ while true; do
                 case "$comp_choice" in
                     1)
                         read -rp "  SSH Port [22]: " input; SSH_PORT="${input:-$SSH_PORT}"
-                        source "${LIB_DIR}/openssh.sh"
+                        source "${LIB_DIR}/01-openssh.sh"
                         openssh_install "$SSH_PORT" "$ALLOW_ROOT" "$ALLOW_PASSWORD"
                         read -rp "  [Enter] lanjut..." _;;
                     2)
                         read -rp "  Dropbear Port [143]: " input; DROPBEAR_PORT="${input:-$DROPBEAR_PORT}"
-                        source "${LIB_DIR}/dropbear.sh"
+                        source "${LIB_DIR}/02-dropbear.sh"
                         dropbear_install "$DROPBEAR_PORT"
                         read -rp "  [Enter] lanjut..." _;;
                     3)
                         read -rp "  BadVPN Start Port [7300]: " input; BADVPN_START="${input:-$BADVPN_START}"
-                        source "${LIB_DIR}/badvpn.sh"
+                        source "${LIB_DIR}/03-badvpn.sh"
                         badvpn_install "$BADVPN_START"
                         read -rp "  [Enter] lanjut..." _;;
                     4)
@@ -262,15 +269,15 @@ while true; do
                                 validate_fqdn "$DOMAIN" && break || warn "Invalid"
                             done
                         fi
-                        source "${LIB_DIR}/haproxy.sh"
+                        source "${LIB_DIR}/04-haproxy.sh"
                         haproxy_install "$DOMAIN" "$WS_PORT" "$SSH_PORT" "$DROPBEAR_PORT" "$HAPROXY_PORT_80" "$HAPROXY_PORT_443"
                         read -rp "  [Enter] lanjut..." _;;
                     5)
-                        source "${LIB_DIR}/ws-tunnel.sh"
+                        source "${LIB_DIR}/05-ws-tunnel.sh"
                         ws_tunnel_install "$WS_PORT" "127.0.0.1" "$SSH_PORT"
                         read -rp "  [Enter] lanjut..." _;;
                     6)
-                        source "${LIB_DIR}/firewall.sh"
+                        source "${LIB_DIR}/06-firewall.sh"
                         firewall_setup "$SSH_PORT" "$DROPBEAR_PORT" "$WS_PORT" "$BADVPN_START" $((BADVPN_START+99))
                         read -rp "  [Enter] lanjut..." _;;
                     7) break ;;
@@ -280,7 +287,7 @@ while true; do
             ;;
 
         3)  # ── User Management ──────────────────────────
-            source "${LIB_DIR}/users.sh"
+            source "${LIB_DIR}/07-users.sh"
             users_init
             users_menu
             ;;
